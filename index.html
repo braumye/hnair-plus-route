@@ -255,7 +255,7 @@
                     if (this.productFilter === '666') {
                         filtered = filtered.filter(route => {
                             const productCategory = String(route['产品分类'] || '').toLowerCase();
-                            return productCategory.includes('666') || productCategory.includes('2666');
+                            return productCategory === '666/2666';
                         });
                     }
                     
