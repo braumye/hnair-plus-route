@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>航班数据差异对比 - HNair Plus Route</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <style>
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .fade-in { animation: fadeIn 0.5s ease-out; }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .spinner { animation: spin 1s linear infinite; }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-blue-50 to-indigo-100 min-h-screen">
+    <div x-data="diffApp()" class="container mx-auto px-4 py-8">
+        <!-- 头部 -->
+        <header class="text-center mb-8">
+            <div class="mb-4">
+                <a href="index.html" class="inline-flex items-center text-blue-600 hover:text-blue-800 transition-colors">
+                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+                    </svg>
+                    返回主页
+                </a>
+            </div>
+            <h1 class="text-4xl font-bold text-gray-800 mb-2">航班数据差异对比</h1>
+            <p class="text-gray-600 text-lg">对比两个日期的航班数据变化</p>
+        </header>
+
+        <!-- 文件选择器 -->
+        <div class="max-w-4xl mx-auto mb-8">
+            <div class="bg-white rounded-xl shadow-lg p-6">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">选择第一个文件：</label>
+                        <select x-model="file1" @change="checkCompareButton()" 
+                                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                            <option value="">请选择文件...</option>
+                            <template x-for="file in availableFiles" :key="file">
+                                <option :value="file" x-text="file"></option>
+                            </template>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">选择第二个文件：</label>
+                        <select x-model="file2" @change="checkCompareButton()" 
+                                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                            <option value="">请选择文件...</option>
+                            <template x-for="file in availableFiles" :key="file">
+                                <option :value="file" x-text="file"></option>
+                            </template>
+                        </select>
+                    </div>
+                </div>
+                <button @click="compareFiles()" :disabled="!canCompare" 
+                        :class="canCompare ? 'bg-blue-600 hover:bg-blue-700' : 'bg-gray-400 cursor-not-allowed'"
+                        class="w-full py-3 px-6 text-white font-semibold rounded-lg transition-colors">
+                    开始对比
+                </button>
+            </div>
+        </div>
+
+        <!-- 加载指示器 -->
+        <div x-show="loading" class="max-w-4xl mx-auto mb-8">
+            <div class="bg-white rounded-xl shadow-lg p-8 text-center">
+                <div class="w-12 h-12 border-4 border-blue-200 border-t-blue-600 rounded-full spinner mx-auto mb-4"></div>
+                <p class="text-gray-600">正在加载和对比数据...</p>
+            </div>
+        </div>
+
+        <!-- 错误消息 -->
+        <div x-show="errorMessage" class="max-w-4xl mx-auto mb-8">
+            <div class="bg-red-50 border border-red-200 rounded-xl p-4 flex items-center">
+                <svg class="w-6 h-6 text-red-500 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+                <span class="text-red-700" x-text="errorMessage"></span>
+            </div>
+        </div>
+
+        <!-- 对比结果 -->
+        <div x-show="showResults" class="max-w-6xl mx-auto fade-in">
+            <!-- 摘要卡片 -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                <div class="bg-gradient-to-r from-green-500 to-green-600 rounded-xl shadow-lg p-6 text-white">
+                    <div class="flex items-center">
+                        <div class="bg-white bg-opacity-20 rounded-full p-3 mr-4">
+                            <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                            </svg>
+                        </div>
+                        <div>
+                            <div class="text-3xl font-bold" x-text="addedFlights.length"></div>
+                            <div class="text-green-100">新增航班</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="bg-gradient-to-r from-red-500 to-red-600 rounded-xl shadow-lg p-6 text-white">
+                    <div class="flex items-center">
+                        <div class="bg-white bg-opacity-20 rounded-full p-3 mr-4">
+                            <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4"></path>
+                            </svg>
+                        </div>
+                        <div>
+                            <div class="text-3xl font-bold" x-text="removedFlights.length"></div>
+                            <div class="text-red-100">删除航班</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 标签页 -->
+            <div class="bg-white rounded-xl shadow-lg overflow-hidden">
+                <div class="flex border-b">
+                    <button @click="activeTab = 'added'" 
+                            :class="activeTab === 'added' ? 'bg-green-50 text-green-700 border-b-2 border-green-500' : 'text-gray-600 hover:text-gray-800'"
+                            class="flex-1 px-6 py-4 font-semibold transition-colors">
+                        新增航班 (<span x-text="addedFlights.length"></span>)
+                    </button>
+                    <button @click="activeTab = 'removed'" 
+                            :class="activeTab === 'removed' ? 'bg-red-50 text-red-700 border-b-2 border-red-500' : 'text-gray-600 hover:text-gray-800'"
+                            class="flex-1 px-6 py-4 font-semibold transition-colors">
+                        删除航班 (<span x-text="removedFlights.length"></span>)
+                    </button>
+                </div>
+
+                <!-- 新增航班内容 -->
+                <div x-show="activeTab === 'added'" class="p-6">
+                    <template x-if="addedFlights.length === 0">
+                        <div class="text-center py-12 text-gray-500">
+                            <svg class="w-16 h-16 mx-auto mb-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                            </svg>
+                            <p class="text-lg">没有新增的航班</p>
+                        </div>
+                    </template>
+                    <template x-if="addedFlights.length > 0">
+                        <div>
+                            <template x-for="(cityGroup, city) in groupedAddedFlights" :key="city">
+                                <div class="mb-8">
+                                    <h3 class="text-xl font-bold text-gray-800 mb-4 flex items-center">
+                                        <span class="bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm mr-3" x-text="cityGroup.length"></span>
+                                        <span x-text="city"></span>
+                                    </h3>
+                                    <div class="grid gap-4">
+                                        <template x-for="flight in cityGroup" :key="getFlightKey(flight)">
+                                            <div class="bg-green-50 border-l-4 border-green-500 rounded-lg p-4 hover:shadow-md transition-shadow">
+                                                <div class="mb-3">
+                                                    <div class="font-bold text-lg text-gray-800" x-text="flight.起飞机场 + ' → ' + flight.降落机场 + ' [' + flight.航班号 + ']'"></div>
+                                                </div>
+                                                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                                                    <div>
+                                                        <span class="font-semibold text-gray-700">起飞时间：</span>
+                                                        <span x-text="flight.起飞时间"></span>
+                                                    </div>
+                                                    <div>
+                                                        <span class="font-semibold text-gray-700">班期：</span>
+                                                        <span x-text="flight.班期"></span>
+                                                    </div>
+                                                    <div>
+                                                        <span class="font-semibold text-gray-700">产品分类：</span>
+                                                        <span x-text="getProductCategory(flight)"></span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </template>
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
+                    </template>
+                </div>
+
+                <!-- 删除航班内容 -->
+                <div x-show="activeTab === 'removed'" class="p-6">
+                    <template x-if="removedFlights.length === 0">
+                        <div class="text-center py-12 text-gray-500">
+                            <svg class="w-16 h-16 mx-auto mb-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                            </svg>
+                            <p class="text-lg">没有删除的航班</p>
+                        </div>
+                    </template>
+                    <template x-if="removedFlights.length > 0">
+                        <div>
+                            <template x-for="(cityGroup, city) in groupedRemovedFlights" :key="city">
+                                <div class="mb-8">
+                                    <h3 class="text-xl font-bold text-gray-800 mb-4 flex items-center">
+                                        <span class="bg-red-100 text-red-800 px-3 py-1 rounded-full text-sm mr-3" x-text="cityGroup.length"></span>
+                                        <span x-text="city"></span>
+                                    </h3>
+                                    <div class="grid gap-4">
+                                        <template x-for="flight in cityGroup" :key="getFlightKey(flight)">
+                                            <div class="bg-red-50 border-l-4 border-red-500 rounded-lg p-4 hover:shadow-md transition-shadow">
+                                                <div class="mb-3">
+                                                    <div class="font-bold text-lg text-gray-800" x-text="flight.起飞机场 + ' → ' + flight.降落机场 + ' [' + flight.航班号 + ']'"></div>
+                                                </div>
+                                                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                                                    <div>
+                                                        <span class="font-semibold text-gray-700">起飞时间：</span>
+                                                        <span x-text="flight.起飞时间"></span>
+                                                    </div>
+                                                    <div>
+                                                        <span class="font-semibold text-gray-700">班期：</span>
+                                                        <span x-text="flight.班期"></span>
+                                                    </div>
+                                                    <div>
+                                                        <span class="font-semibold text-gray-700">产品分类：</span>
+                                                        <span x-text="getProductCategory(flight)"></span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </template>
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
+                    </template>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function diffApp() {
+            return {
+                availableFiles: ['20250828.json', '20250906.json'],
+                file1: '',
+                file2: '',
+                loading: false,
+                showResults: false,
+                errorMessage: '',
+                activeTab: 'added',
+                addedFlights: [],
+                removedFlights: [],
+                groupedAddedFlights: {},
+                groupedRemovedFlights: {},
+
+                get canCompare() {
+                    return this.file1 && this.file2 && this.file1 !== this.file2;
+                },
+
+                checkCompareButton() {
+                    // 重置结果显示
+                    this.showResults = false;
+                    this.errorMessage = '';
+                },
+
+                async compareFiles() {
+                    if (!this.canCompare) return;
+
+                    this.loading = true;
+                    this.showResults = false;
+                    this.errorMessage = '';
+
+                    try {
+                        const [data1, data2] = await Promise.all([
+                            this.loadJsonFile(this.file1),
+                            this.loadJsonFile(this.file2)
+                        ]);
+
+                        const diffResult = this.analyzeDifferences(data1, data2);
+                        this.addedFlights = diffResult.added;
+                        this.removedFlights = diffResult.removed;
+
+                        // 按出发城市分组
+                        this.groupedAddedFlights = this.groupFlightsByCity(this.addedFlights);
+                        this.groupedRemovedFlights = this.groupFlightsByCity(this.removedFlights);
+
+                        this.showResults = true;
+                        this.activeTab = this.addedFlights.length > 0 ? 'added' : 'removed';
+
+                    } catch (error) {
+                        console.error('比较文件时出错:', error);
+                        this.errorMessage = '比较文件时出现错误: ' + error.message;
+                    } finally {
+                        this.loading = false;
+                    }
+                },
+
+                async loadJsonFile(filename) {
+                    const response = await fetch(`./json/${filename}`);
+                    if (!response.ok) {
+                        throw new Error(`无法加载文件 ${filename}: ${response.statusText}`);
+                    }
+                    return await response.json();
+                },
+
+                analyzeDifferences(data1, data2) {
+                    const flights1 = this.extractFlights(data1);
+                    const flights2 = this.extractFlights(data2);
+
+                    const flightMap1 = new Map();
+                    const flightMap2 = new Map();
+
+                    flights1.forEach(flight => {
+                        const key = this.getFlightKey(flight);
+                        flightMap1.set(key, flight);
+                    });
+
+                    flights2.forEach(flight => {
+                        const key = this.getFlightKey(flight);
+                        flightMap2.set(key, flight);
+                    });
+
+                    const added = [];
+                    const removed = [];
+
+                    // 找出新增的航班
+                    flightMap2.forEach((flight, key) => {
+                        if (!flightMap1.has(key)) {
+                            added.push(flight);
+                        }
+                    });
+
+                    // 找出删除的航班
+                    flightMap1.forEach((flight, key) => {
+                        if (!flightMap2.has(key)) {
+                            removed.push(flight);
+                        }
+                    });
+
+                    return {
+                        added: added.sort((a, b) => a.航班号.localeCompare(b.航班号)),
+                        removed: removed.sort((a, b) => a.航班号.localeCompare(b.航班号))
+                    };
+                },
+
+                extractFlights(data) {
+                    if (data.tables && data.tables.length > 0) {
+                        return data.tables[0].rows || [];
+                    }
+                    return [];
+                },
+
+                getFlightKey(flight) {
+                    return `${flight.航班号}-${flight.起飞机场}-${flight.降落机场}-${flight.起飞时间}`;
+                },
+
+                groupFlightsByCity(flights) {
+                    const grouped = {};
+                    flights.forEach(flight => {
+                        const city = flight.起飞机场;
+                        if (!grouped[city]) {
+                            grouped[city] = [];
+                        }
+                        grouped[city].push(flight);
+                    });
+
+                    // 按城市名称排序
+                    const sortedGrouped = {};
+                    Object.keys(grouped).sort().forEach(city => {
+                        sortedGrouped[city] = grouped[city];
+                    });
+
+                    return sortedGrouped;
+                },
+
+                getProductCategory(flight) {
+                    // 优先使用"产品分类"，如果不存在则使用"适用产品"
+                    return flight.产品分类 || flight.适用产品 || '未知';
+                }
+            }
+        }
+    </script>
+</body>
+</html>
