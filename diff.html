@@ -92,32 +92,18 @@
             <!-- 报告生成按钮 -->
             <div class="mb-6 text-center">
                 <div class="bg-white rounded-xl shadow-lg p-4">
-                    <h3 class="text-lg font-semibold text-gray-800 mb-3">生成差异报告</h3>
+                    <h3 class="text-lg font-semibold text-gray-800 mb-3">生成航班差异报告</h3>
                     <div class="flex flex-wrap justify-center gap-3">
-                        <button @click="generateReport('markdown')" 
-                                class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center">
-                            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <button @click="generateHtmlReport()" 
+                                class="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center">
+                            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
                             </svg>
-                            下载 Markdown 报告
+                            下载卡片式报告
                         </button>
-                        <button @click="generateReport('html')" 
-                                class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center">
-                            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-                            </svg>
-                            下载 HTML 报告
-                        </button>
-                        <button @click="generateReport('json')" 
-                                class="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors flex items-center">
-                            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-                            </svg>
-                            下载 JSON 数据
-                        </button>
-                        <button @click="previewReport()" 
-                                class="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors flex items-center">
-                            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <button @click="previewHtmlReport()" 
+                                class="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center">
+                            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
                             </svg>
@@ -652,20 +638,20 @@
                     return flight.产品分类 || flight.适用产品 || '未知';
                 },
 
-                generateReport(format) {
+                generateHtmlReport() {
                     const reportData = this.prepareReportData();
+                    this.downloadHtmlReport(reportData);
+                },
+
+                previewHtmlReport() {
+                    const reportData = this.prepareReportData();
+                    const content = this.generateSimpleReport(reportData);
                     
-                    switch (format) {
-                        case 'markdown':
-                            this.downloadMarkdownReport(reportData);
-                            break;
-                        case 'html':
-                            this.downloadHtmlReport(reportData);
-                            break;
-                        case 'json':
-                            this.downloadJsonReport(reportData);
-                            break;
-                    }
+                    // 创建预览窗口
+                    const previewWindow = window.open('', '_blank', 'width=1200,height=800');
+                    const html = '<html><head><title>航班差异报告预览</title><style>body{font-family:Arial,sans-serif;padding:20px;line-height:1.6;background:#f5f5f5;}h1,h2,h3{color:#333;}.summary{background:white;padding:20px;border-radius:8px;margin:20px 0;box-shadow:0 2px 4px rgba(0,0,0,0.1);}.card{background:white;padding:15px;margin:10px 0;border-radius:8px;border-left:4px solid #007bff;}.added{border-left-color:#28a745;}.modified{border-left-color:#ffc107;}.removed{border-left-color:#dc3545;}.flight-info{margin:5px 0;font-size:14px;}.change{background:#f8f9fa;padding:8px;margin:5px 0;border-radius:4px;}</style></head><body>' + content + '</body></html>';
+                    previewWindow.document.write(html);
+                    previewWindow.document.close();
                 },
 
                 prepareReportData() {
@@ -689,62 +675,63 @@
                 },
 
                 downloadMarkdownReport(data) {
-                    let markdown = `# 航班数据差异报告\n\n`;
-                    markdown += `**生成时间**: ${data.metadata.generatedAt}\n`;
-                    markdown += `**对比文件**: ${data.metadata.file1} vs ${data.metadata.file2}\n\n`;
+                    let markdown = '# 航班数据差异报告\n\n';
+                    markdown += '**生成时间**: ' + data.metadata.generatedAt + '\n';
+                    markdown += '**对比文件**: ' + data.metadata.file1 + ' vs ' + data.metadata.file2 + '\n\n';
                     
                     // 摘要
-                    markdown += `## 📊 对比摘要\n\n`;
-                    markdown += `| 变更类型 | 数量 |\n`;
-                    markdown += `|---------|------|\n`;
-                    markdown += `| 🟢 新增航班 | ${data.metadata.totalAdded} |\n`;
-                    markdown += `| 🟡 航班调整 | ${data.metadata.totalModified} |\n`;
-                    markdown += `| 🔴 删除航班 | ${data.metadata.totalRemoved} |\n\n`;
+                    markdown += '## 📊 对比摘要\n\n';
+                    markdown += '| 变更类型 | 数量 |\n';
+                    markdown += '|---------|------|\n';
+                    markdown += '| 🟢 新增航班 | ' + data.metadata.totalAdded + ' |\n';
+                    markdown += '| 🟡 航班调整 | ' + data.metadata.totalModified + ' |\n';
+                    markdown += '| 🔴 删除航班 | ' + data.metadata.totalRemoved + ' |\n\n';
                     
                     // 新增航班
                     if (data.metadata.totalAdded > 0) {
-                        markdown += `## ✈️ 新增航班 (${data.metadata.totalAdded})\n\n`;
+                        markdown += '## ✈️ 新增航班 (' + data.metadata.totalAdded + ')\n\n';
                         Object.entries(data.groupedAddedFlights).forEach(([city, flights]) => {
-                            markdown += `### ${city} (${flights.length}班)\n\n`;
+                            markdown += '### ' + city + ' (' + flights.length + '班)\n\n';
                             flights.forEach(flight => {
-                                markdown += `- **${flight.航班号}**: ${flight.起飞机场} → ${flight.降落机场}\n`;
-                                markdown += `  - 起飞时间: ${flight.起飞时间}\n`;
-                                markdown += `  - 班期: ${flight.班期}\n`;
-                                markdown += `  - 产品分类: ${this.getProductCategory(flight)}\n\n`;
+                                markdown += '- **' + flight.航班号 + '**: ' + flight.起飞机场 + ' → ' + flight.降落机场 + '\n';
+                                markdown += '  - 起飞时间: ' + flight.起飞时间 + '\n';
+                                markdown += '  - 班期: ' + flight.班期 + '\n';
+                                markdown += '  - 产品分类: ' + this.getProductCategory(flight) + '\n\n';
                             });
                         });
                     }
                     
                     // 航班调整
                     if (data.metadata.totalModified > 0) {
-                        markdown += `## 🔄 航班调整 (${data.metadata.totalModified})\n\n`;
+                        markdown += '## 🔄 航班调整 (' + data.metadata.totalModified + ')\n\n';
                         Object.entries(data.groupedModifiedFlights).forEach(([city, flightPairs]) => {
-                            markdown += `### ${city} (${flightPairs.length}班)\n\n`;
+                            markdown += '### ' + city + ' (' + flightPairs.length + '班)\n\n';
                             flightPairs.forEach(pair => {
-                                markdown += `- **${pair.old.航班号}**: ${pair.old.起飞机场} → ${pair.old.降落机场}\n`;
+                                markdown += '- **' + pair.old.航班号 + '**: ' + pair.old.起飞机场 + ' → ' + pair.old.降落机场 + '\n';
                                 pair.changes.forEach(change => {
-                                    markdown += `  - ${change.label}: ${change.oldValue} → ${change.newValue}\n`;
+                                    markdown += '  - ' + change.label + ': ' + change.oldValue + ' → ' + change.newValue + '\n';
                                 });
-                                markdown += `\n`;
+                                markdown += '\n';
                             });
                         });
                     }
                     
                     // 删除航班
                     if (data.metadata.totalRemoved > 0) {
-                        markdown += `## ❌ 删除航班 (${data.metadata.totalRemoved})\n\n`;
+                        markdown += '## ❌ 删除航班 (' + data.metadata.totalRemoved + ')\n\n';
                         Object.entries(data.groupedRemovedFlights).forEach(([city, flights]) => {
-                            markdown += `### ${city} (${flights.length}班)\n\n`;
+                            markdown += '### ' + city + ' (' + flights.length + '班)\n\n';
                             flights.forEach(flight => {
-                                markdown += `- **${flight.航班号}**: ${flight.起飞机场} → ${flight.降落机场}\n`;
-                                markdown += `  - 起飞时间: ${flight.起飞时间}\n`;
-                                markdown += `  - 班期: ${flight.班期}\n`;
-                                markdown += `  - 产品分类: ${this.getProductCategory(flight)}\n\n`;
+                                markdown += '- **' + flight.航班号 + '**: ' + flight.起飞机场 + ' → ' + flight.降落机场 + '\n';
+                                markdown += '  - 起飞时间: ' + flight.起飞时间 + '\n';
+                                markdown += '  - 班期: ' + flight.班期 + '\n';
+                                markdown += '  - 产品分类: ' + this.getProductCategory(flight) + '\n\n';
                             });
                         });
                     }
                     
-                    this.downloadFile(markdown, `航班差异报告_${data.metadata.file1}_vs_${data.metadata.file2}.md`, 'text/markdown');
+                    const filename = '航班差异报告_' + data.metadata.file1 + '_vs_' + data.metadata.file2 + '.md';
+                    this.downloadFile(markdown, filename, 'text/markdown');
                 },
 
                 downloadHtmlReport(data) {
@@ -757,7 +744,7 @@
                     html += '    <meta charset="UTF-8">\n';
                     html += '    <meta name="viewport" content="width=device-width, initial-scale=1.0">\n';
                     html += '    <title>' + reportTitle + '</title>\n';
-                    html += '    <script src="https://cdn.tailwindcss.com"></script>\n';
+                    html += '    <script src="https://cdn.tailwindcss.com"' + '> ' + '<' + '/script>';
                     html += '    <style>\n';
                     html += '        @media print { .no-print { display: none !important; } }\n';
                     html += '    </style>\n';
@@ -836,46 +823,81 @@
 
                 previewReport() {
                     const reportData = this.prepareReportData();
-                    const markdown = this.generateMarkdownContent(reportData);
+                    const content = this.generateSimpleReport(reportData);
                     
                     // 创建预览窗口
                     const previewWindow = window.open('', '_blank', 'width=800,height=600');
-                    previewWindow.document.write(`
-                        <html>
-                        <head>
-                            <title>报告预览</title>
-                            <style>
-                                body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
-                                       line-height: 1.6; max-width: 800px; margin: 0 auto; padding: 20px; }
-                                h1, h2, h3 { color: #333; }
-                                table { border-collapse: collapse; width: 100%; margin: 1em 0; }
-                                th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-                                th { background-color: #f2f2f2; }
-                                pre { background: #f5f5f5; padding: 1em; border-radius: 4px; overflow-x: auto; }
-                            </style>
-                        </head>
-                        <body>
-                            <pre>${markdown}</pre>
-                        </body>
-                        </html>
-                    `);
+                    const html = '<html><head><title>报告预览</title><style>body{font-family:Arial,sans-serif;padding:20px;line-height:1.6;}h1,h2,h3{color:#333;}table{border-collapse:collapse;width:100%;margin:1em 0;}th,td{border:1px solid #ddd;padding:8px;text-align:left;}th{background-color:#f2f2f2;}</style></head><body>' + content + '</body></html>';
+                    previewWindow.document.write(html);
                     previewWindow.document.close();
                 },
 
-                generateMarkdownContent(data) {
-                    // 重用 downloadMarkdownReport 的逻辑，但返回内容而不是下载
-                    let markdown = `# 航班数据差异报告\n\n`;
-                    markdown += `**生成时间**: ${data.metadata.generatedAt}\n`;
-                    markdown += `**对比文件**: ${data.metadata.file1} vs ${data.metadata.file2}\n\n`;
-                    
-                    markdown += `## 📊 对比摘要\n\n`;
-                    markdown += `| 变更类型 | 数量 |\n`;
-                    markdown += `|---------|------|\n`;
-                    markdown += `| 🟢 新增航班 | ${data.metadata.totalAdded} |\n`;
-                    markdown += `| 🟡 航班调整 | ${data.metadata.totalModified} |\n`;
-                    markdown += `| 🔴 删除航班 | ${data.metadata.totalRemoved} |\n\n`;
-                    
-                    return markdown;
+                generateSimpleReport(data) {
+                    let html = '<h1>航班数据差异报告</h1>';
+                    html += '<div class="summary">';
+                    html += '<p><strong>生成时间:</strong> ' + data.metadata.generatedAt + '</p>';
+                    html += '<p><strong>对比文件:</strong> ' + data.metadata.file1 + ' vs ' + data.metadata.file2 + '</p>';
+                    html += '<h2>📊 对比摘要</h2>';
+                    html += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:15px;margin:20px 0;">';
+                    html += '<div style="background:#d4edda;padding:15px;border-radius:8px;text-align:center;"><h3 style="margin:0;color:#155724;">✈️ 新增航班</h3><div style="font-size:24px;font-weight:bold;color:#155724;">' + data.metadata.totalAdded + '</div></div>';
+                    html += '<div style="background:#fff3cd;padding:15px;border-radius:8px;text-align:center;"><h3 style="margin:0;color:#856404;">🔄 航班调整</h3><div style="font-size:24px;font-weight:bold;color:#856404;">' + data.metadata.totalModified + '</div></div>';
+                    html += '<div style="background:#f8d7da;padding:15px;border-radius:8px;text-align:center;"><h3 style="margin:0;color:#721c24;">❌ 删除航班</h3><div style="font-size:24px;font-weight:bold;color:#721c24;">' + data.metadata.totalRemoved + '</div></div>';
+                    html += '</div>';
+                    html += '</div>';
+
+                    // 新增航班详情
+                    if (data.metadata.totalAdded > 0) {
+                        html += '<h2>✈️ 新增航班详情</h2>';
+                        Object.entries(data.groupedAddedFlights).forEach(([city, flights]) => {
+                            html += '<h3>' + city + ' (' + flights.length + '班)</h3>';
+                            flights.forEach(flight => {
+                                html += '<div class="card added">';
+                                html += '<div style="font-weight:bold;font-size:16px;margin-bottom:8px;">' + flight.航班号 + ': ' + flight.起飞机场 + ' → ' + flight.降落机场 + '</div>';
+                                html += '<div class="flight-info">起飞时间: ' + flight.起飞时间 + '</div>';
+                                html += '<div class="flight-info">班期: ' + flight.班期 + '</div>';
+                                html += '<div class="flight-info">产品分类: ' + this.getProductCategory(flight) + '</div>';
+                                html += '</div>';
+                            });
+                        });
+                    }
+
+                    // 航班调整详情
+                    if (data.metadata.totalModified > 0) {
+                        html += '<h2>🔄 航班调整详情</h2>';
+                        Object.entries(data.groupedModifiedFlights).forEach(([city, flightPairs]) => {
+                            html += '<h3>' + city + ' (' + flightPairs.length + '班)</h3>';
+                            flightPairs.forEach(pair => {
+                                html += '<div class="card modified">';
+                                html += '<div style="font-weight:bold;font-size:16px;margin-bottom:8px;">' + pair.old.航班号 + ': ' + pair.old.起飞机场 + ' → ' + pair.old.降落机场 + '</div>';
+                                pair.changes.forEach(change => {
+                                    html += '<div class="change">';
+                                    html += '<strong>' + change.label + '变更:</strong> ';
+                                    html += '<span style="color:#dc3545;">' + change.oldValue + '</span> → ';
+                                    html += '<span style="color:#28a745;">' + change.newValue + '</span>';
+                                    html += '</div>';
+                                });
+                                html += '</div>';
+                            });
+                        });
+                    }
+
+                    // 删除航班详情
+                    if (data.metadata.totalRemoved > 0) {
+                        html += '<h2>❌ 删除航班详情</h2>';
+                        Object.entries(data.groupedRemovedFlights).forEach(([city, flights]) => {
+                            html += '<h3>' + city + ' (' + flights.length + '班)</h3>';
+                            flights.forEach(flight => {
+                                html += '<div class="card removed">';
+                                html += '<div style="font-weight:bold;font-size:16px;margin-bottom:8px;">' + flight.航班号 + ': ' + flight.起飞机场 + ' → ' + flight.降落机场 + '</div>';
+                                html += '<div class="flight-info">起飞时间: ' + flight.起飞时间 + '</div>';
+                                html += '<div class="flight-info">班期: ' + flight.班期 + '</div>';
+                                html += '<div class="flight-info">产品分类: ' + this.getProductCategory(flight) + '</div>';
+                                html += '</div>';
+                            });
+                        });
+                    }
+
+                    return html;
                 },
 
                 getBaseFlightKey(flight) {
