@@ -21,7 +21,7 @@
     </style>
 </head>
 <body class="bg-gradient-to-br from-blue-50 to-indigo-100 min-h-screen">
-    <div x-data="diffApp()" class="container mx-auto px-4 py-8">
+    <div x-data="diffApp()" x-init="init()" class="container mx-auto px-4 py-8">
         <!-- 头部 -->
         <header class="text-center mb-8">
             <div class="mb-4">
@@ -90,7 +90,7 @@
         <!-- 对比结果 -->
         <div x-show="showResults" class="max-w-6xl mx-auto fade-in">
             <!-- 摘要卡片 -->
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
                 <div class="bg-gradient-to-r from-green-500 to-green-600 rounded-xl shadow-lg p-6 text-white">
                     <div class="flex items-center">
                         <div class="bg-white bg-opacity-20 rounded-full p-3 mr-4">
@@ -101,6 +101,19 @@
                         <div>
                             <div class="text-3xl font-bold" x-text="addedFlights.length"></div>
                             <div class="text-green-100">新增航班</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="bg-gradient-to-r from-yellow-500 to-orange-500 rounded-xl shadow-lg p-6 text-white">
+                    <div class="flex items-center">
+                        <div class="bg-white bg-opacity-20 rounded-full p-3 mr-4">
+                            <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+                            </svg>
+                        </div>
+                        <div>
+                            <div class="text-3xl font-bold" x-text="modifiedFlights.length"></div>
+                            <div class="text-yellow-100">航班调整</div>
                         </div>
                     </div>
                 </div>
@@ -124,12 +137,17 @@
                 <div class="flex border-b">
                     <button @click="activeTab = 'added'" 
                             :class="activeTab === 'added' ? 'bg-green-50 text-green-700 border-b-2 border-green-500' : 'text-gray-600 hover:text-gray-800'"
-                            class="flex-1 px-6 py-4 font-semibold transition-colors">
+                            class="flex-1 px-4 py-4 font-semibold transition-colors text-sm md:text-base">
                         新增航班 (<span x-text="addedFlights.length"></span>)
+                    </button>
+                    <button @click="activeTab = 'modified'" 
+                            :class="activeTab === 'modified' ? 'bg-yellow-50 text-yellow-700 border-b-2 border-yellow-500' : 'text-gray-600 hover:text-gray-800'"
+                            class="flex-1 px-4 py-4 font-semibold transition-colors text-sm md:text-base">
+                        航班调整 (<span x-text="modifiedFlights.length"></span>)
                     </button>
                     <button @click="activeTab = 'removed'" 
                             :class="activeTab === 'removed' ? 'bg-red-50 text-red-700 border-b-2 border-red-500' : 'text-gray-600 hover:text-gray-800'"
-                            class="flex-1 px-6 py-4 font-semibold transition-colors">
+                            class="flex-1 px-4 py-4 font-semibold transition-colors text-sm md:text-base">
                         删除航班 (<span x-text="removedFlights.length"></span>)
                     </button>
                 </div>
@@ -171,6 +189,61 @@
                                                         <span class="font-semibold text-gray-700">产品分类：</span>
                                                         <span x-text="getProductCategory(flight)"></span>
                                                     </div>
+                                                </div>
+                                            </div>
+                                        </template>
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
+                    </template>
+                </div>
+
+                <!-- 航班调整内容 -->
+                <div x-show="activeTab === 'modified'" class="p-6">
+                    <template x-if="modifiedFlights.length === 0">
+                        <div class="text-center py-12 text-gray-500">
+                            <svg class="w-16 h-16 mx-auto mb-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                            </svg>
+                            <p class="text-lg">没有调整的航班</p>
+                        </div>
+                    </template>
+                    <template x-if="modifiedFlights.length > 0">
+                        <div>
+                            <template x-for="(cityGroup, city) in groupedModifiedFlights" :key="city">
+                                <div class="mb-8">
+                                    <h3 class="text-xl font-bold text-gray-800 mb-4 flex items-center">
+                                        <span class="bg-yellow-100 text-yellow-800 px-3 py-1 rounded-full text-sm mr-3" x-text="cityGroup.length"></span>
+                                        <span x-text="city"></span>
+                                    </h3>
+                                    <div class="grid gap-4">
+                                        <template x-for="flightPair in cityGroup" :key="getFlightKey(flightPair.old)">
+                                            <div class="bg-yellow-50 border-l-4 border-yellow-500 rounded-lg p-4 hover:shadow-md transition-shadow">
+                                                <div class="mb-3">
+                                                    <div class="font-bold text-lg text-gray-800" x-text="flightPair.old.起飞机场 + ' → ' + flightPair.old.降落机场 + ' [' + flightPair.old.航班号 + ']'"></div>
+                                                </div>
+                                                
+                                                <!-- 变更对比 -->
+                                                <div class="space-y-3">
+                                                    <template x-for="change in flightPair.changes" :key="change.field">
+                                                        <div class="bg-white rounded-lg p-3 border">
+                                                            <div class="text-sm font-semibold text-gray-700 mb-2" x-text="change.label + '变更：'"></div>
+                                                            <div class="flex flex-col md:flex-row md:items-center gap-2">
+                                                                <div class="flex items-center">
+                                                                    <span class="text-xs bg-red-100 text-red-700 px-2 py-1 rounded mr-2">原值</span>
+                                                                    <span class="text-red-700" x-text="change.oldValue"></span>
+                                                                </div>
+                                                                <svg class="w-4 h-4 text-gray-400 mx-2 hidden md:block" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"></path>
+                                                                </svg>
+                                                                <div class="flex items-center">
+                                                                    <span class="text-xs bg-green-100 text-green-700 px-2 py-1 rounded mr-2">新值</span>
+                                                                    <span class="text-green-700" x-text="change.newValue"></span>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </template>
                                                 </div>
                                             </div>
                                         </template>
@@ -234,7 +307,7 @@
     <script>
         function diffApp() {
             return {
-                availableFiles: ['20250828.json', '20250906.json'],
+                availableFiles: [],
                 file1: '',
                 file2: '',
                 loading: false,
@@ -243,11 +316,143 @@
                 activeTab: 'added',
                 addedFlights: [],
                 removedFlights: [],
+                modifiedFlights: [],
                 groupedAddedFlights: {},
                 groupedRemovedFlights: {},
+                groupedModifiedFlights: {},
+
+                async init() {
+                    await this.loadAvailableFiles();
+                },
 
                 get canCompare() {
                     return this.file1 && this.file2 && this.file1 !== this.file2;
+                },
+
+                async loadAvailableFiles() {
+                    try {
+                        // 方法1: 尝试通过GitHub API获取文件列表（适用于GitHub Pages）
+                        if (window.location.hostname.includes('github.io')) {
+                            await this.loadFilesFromGitHubAPI();
+                        } else {
+                            // 方法2: 尝试通过目录索引获取文件列表（适用于本地服务器）
+                            await this.loadFilesFromDirectory();
+                        }
+                    } catch (error) {
+                        console.warn('动态加载文件列表失败，使用预定义列表:', error);
+                        // 后备方案：使用预定义的文件列表
+                        this.availableFiles = ['20250828.json', '20250906.json'];
+                    }
+                },
+
+                async loadFilesFromGitHubAPI() {
+                    // 从当前URL推断GitHub仓库信息
+                    const pathParts = window.location.pathname.split('/');
+                    const owner = pathParts[1]; // 用户名
+                    const repo = pathParts[2];  // 仓库名
+                    
+                    if (owner && repo) {
+                        const apiUrl = `https://api.github.com/repos/${owner}/${repo}/contents/json`;
+                        const response = await fetch(apiUrl);
+                        
+                        if (response.ok) {
+                            const files = await response.json();
+                            this.availableFiles = files
+                                .filter(file => file.name.endsWith('.json') && file.name !== 'latest.json')
+                                .map(file => file.name)
+                                .sort();
+                            return;
+                        }
+                    }
+                    throw new Error('GitHub API 获取失败');
+                },
+
+                async loadFilesFromDirectory() {
+                    // 方法1: 尝试获取json目录的文件列表
+                    try {
+                        const response = await fetch('./json/');
+                        
+                        if (response.ok) {
+                            const html = await response.text();
+                            // 解析HTML中的文件链接
+                            const parser = new DOMParser();
+                            const doc = parser.parseFromString(html, 'text/html');
+                            const links = doc.querySelectorAll('a[href]');
+                            
+                            const jsonFiles = [];
+                            links.forEach(link => {
+                                const href = link.getAttribute('href');
+                                if (href && href.endsWith('.json') && href !== 'latest.json') {
+                                    jsonFiles.push(href);
+                                }
+                            });
+                            
+                            if (jsonFiles.length > 0) {
+                                this.availableFiles = jsonFiles.sort();
+                                return;
+                            }
+                        }
+                    } catch (error) {
+                        console.warn('目录索引方法失败:', error);
+                    }
+
+                    // 方法2: 尝试通过日期模式发现文件
+                    await this.discoverFilesByPattern();
+                },
+
+                async discoverFilesByPattern() {
+                    const discoveredFiles = [];
+                    const currentYear = new Date().getFullYear();
+                    const currentMonth = new Date().getMonth() + 1;
+                    
+                    // 生成可能的文件名（过去6个月到未来1个月）
+                    const possibleFiles = [];
+                    
+                    for (let monthOffset = -6; monthOffset <= 1; monthOffset++) {
+                        const date = new Date(currentYear, currentMonth - 1 + monthOffset, 1);
+                        const year = date.getFullYear();
+                        const month = String(date.getMonth() + 1).padStart(2, '0');
+                        
+                        // 生成该月的所有可能日期
+                        const daysInMonth = new Date(year, date.getMonth() + 1, 0).getDate();
+                        for (let day = 1; day <= daysInMonth; day++) {
+                            const dayStr = String(day).padStart(2, '0');
+                            possibleFiles.push(`${year}${month}${dayStr}.json`);
+                        }
+                    }
+                    
+                    // 并发检查文件是否存在（限制并发数量以避免过多请求）
+                    const batchSize = 10;
+                    for (let i = 0; i < possibleFiles.length; i += batchSize) {
+                        const batch = possibleFiles.slice(i, i + batchSize);
+                        const results = await Promise.allSettled(
+                            batch.map(async (filename) => {
+                                try {
+                                    const response = await fetch(`./json/${filename}`, { method: 'HEAD' });
+                                    return response.ok ? filename : null;
+                                } catch {
+                                    return null;
+                                }
+                            })
+                        );
+                        
+                        results.forEach((result, index) => {
+                            if (result.status === 'fulfilled' && result.value) {
+                                discoveredFiles.push(result.value);
+                            }
+                        });
+                        
+                        // 添加小延迟以避免过于频繁的请求
+                        if (i + batchSize < possibleFiles.length) {
+                            await new Promise(resolve => setTimeout(resolve, 100));
+                        }
+                    }
+                    
+                    if (discoveredFiles.length > 0) {
+                        this.availableFiles = discoveredFiles.sort().reverse(); // 最新的文件在前
+                    } else {
+                        throw new Error('未发现任何文件');
+                    }
                 },
 
                 checkCompareButton() {
@@ -272,13 +477,22 @@
                         const diffResult = this.analyzeDifferences(data1, data2);
                         this.addedFlights = diffResult.added;
                         this.removedFlights = diffResult.removed;
+                        this.modifiedFlights = diffResult.modified;
 
                         // 按出发城市分组
                         this.groupedAddedFlights = this.groupFlightsByCity(this.addedFlights);
                         this.groupedRemovedFlights = this.groupFlightsByCity(this.removedFlights);
+                        this.groupedModifiedFlights = this.groupModifiedFlightsByCity(this.modifiedFlights);
 
                         this.showResults = true;
-                        this.activeTab = this.addedFlights.length > 0 ? 'added' : 'removed';
+                        // 优先显示有数据的标签页
+                        if (this.addedFlights.length > 0) {
+                            this.activeTab = 'added';
+                        } else if (this.modifiedFlights.length > 0) {
+                            this.activeTab = 'modified';
+                        } else {
+                            this.activeTab = 'removed';
+                        }
 
                     } catch (error) {
                         console.error('比较文件时出错:', error);
@@ -300,39 +514,68 @@
                     const flights1 = this.extractFlights(data1);
                     const flights2 = this.extractFlights(data2);
 
-                    const flightMap1 = new Map();
-                    const flightMap2 = new Map();
+                    // 使用航班号+起飞机场+降落机场作为基础标识
+                    const baseFlightMap1 = new Map();
+                    const baseFlightMap2 = new Map();
+                    
+                    // 使用完整信息作为详细标识
+                    const fullFlightMap1 = new Map();
+                    const fullFlightMap2 = new Map();
 
                     flights1.forEach(flight => {
-                        const key = this.getFlightKey(flight);
-                        flightMap1.set(key, flight);
+                        const baseKey = this.getBaseFlightKey(flight);
+                        const fullKey = this.getFlightKey(flight);
+                        baseFlightMap1.set(baseKey, flight);
+                        fullFlightMap1.set(fullKey, flight);
                     });
 
                     flights2.forEach(flight => {
-                        const key = this.getFlightKey(flight);
-                        flightMap2.set(key, flight);
+                        const baseKey = this.getBaseFlightKey(flight);
+                        const fullKey = this.getFlightKey(flight);
+                        baseFlightMap2.set(baseKey, flight);
+                        fullFlightMap2.set(fullKey, flight);
                     });
 
                     const added = [];
                     const removed = [];
+                    const modified = [];
 
-                    // 找出新增的航班
-                    flightMap2.forEach((flight, key) => {
-                        if (!flightMap1.has(key)) {
+                    // 找出新增的航班（基础标识在data2中但不在data1中）
+                    baseFlightMap2.forEach((flight, baseKey) => {
+                        if (!baseFlightMap1.has(baseKey)) {
                             added.push(flight);
                         }
                     });
 
-                    // 找出删除的航班
-                    flightMap1.forEach((flight, key) => {
-                        if (!flightMap2.has(key)) {
+                    // 找出删除的航班（基础标识在data1中但不在data2中）
+                    baseFlightMap1.forEach((flight, baseKey) => {
+                        if (!baseFlightMap2.has(baseKey)) {
                             removed.push(flight);
+                        }
+                    });
+
+                    // 找出调整的航班（基础标识相同但完整信息不同）
+                    baseFlightMap1.forEach((oldFlight, baseKey) => {
+                        if (baseFlightMap2.has(baseKey)) {
+                            const newFlight = baseFlightMap2.get(baseKey);
+                            const oldFullKey = this.getFlightKey(oldFlight);
+                            const newFullKey = this.getFlightKey(newFlight);
+                            
+                            if (oldFullKey !== newFullKey) {
+                                const changes = this.getFlightChanges(oldFlight, newFlight);
+                                modified.push({
+                                    old: oldFlight,
+                                    new: newFlight,
+                                    changes: changes
+                                });
+                            }
                         }
                     });
 
                     return {
                         added: added.sort((a, b) => a.航班号.localeCompare(b.航班号)),
-                        removed: removed.sort((a, b) => a.航班号.localeCompare(b.航班号))
+                        removed: removed.sort((a, b) => a.航班号.localeCompare(b.航班号)),
+                        modified: modified.sort((a, b) => a.old.航班号.localeCompare(b.old.航班号))
                     };
                 },
 
@@ -369,6 +612,73 @@
                 getProductCategory(flight) {
                     // 优先使用"产品分类"，如果不存在则使用"适用产品"
                     return flight.产品分类 || flight.适用产品 || '未知';
+                },
+
+                getBaseFlightKey(flight) {
+                    // 基础标识：航班号+起飞机场+降落机场
+                    return `${flight.航班号}-${flight.起飞机场}-${flight.降落机场}`;
+                },
+
+                getFlightChanges(oldFlight, newFlight) {
+                    const changes = [];
+                    const fieldMap = {
+                        '起飞时间': '起飞时间',
+                        '班期': '班期',
+                        '产品分类': '产品分类'
+                    };
+
+                    // 检查起飞时间变更
+                    if (oldFlight.起飞时间 !== newFlight.起飞时间) {
+                        changes.push({
+                            field: '起飞时间',
+                            label: '起飞时间',
+                            oldValue: oldFlight.起飞时间,
+                            newValue: newFlight.起飞时间
+                        });
+                    }
+
+                    // 检查班期变更
+                    if (oldFlight.班期 !== newFlight.班期) {
+                        changes.push({
+                            field: '班期',
+                            label: '班期',
+                            oldValue: oldFlight.班期,
+                            newValue: newFlight.班期
+                        });
+                    }
+
+                    // 检查产品分类变更
+                    const oldCategory = this.getProductCategory(oldFlight);
+                    const newCategory = this.getProductCategory(newFlight);
+                    if (oldCategory !== newCategory) {
+                        changes.push({
+                            field: '产品分类',
+                            label: '产品分类',
+                            oldValue: oldCategory,
+                            newValue: newCategory
+                        });
+                    }
+
+                    return changes;
+                },
+
+                groupModifiedFlightsByCity(modifiedFlights) {
+                    const grouped = {};
+                    modifiedFlights.forEach(flightPair => {
+                        const city = flightPair.old.起飞机场;
+                        if (!grouped[city]) {
+                            grouped[city] = [];
+                        }
+                        grouped[city].push(flightPair);
+                    });
+
+                    // 按城市名称排序
+                    const sortedGrouped = {};
+                    Object.keys(grouped).sort().forEach(city => {
+                        sortedGrouped[city] = grouped[city];
+                    });
+
+                    return sortedGrouped;
                 }
             }
         }
