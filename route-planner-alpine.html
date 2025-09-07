@@ -31,7 +31,27 @@
 
         <!-- Search Form -->
         <div class="bg-gray-50 p-8 border-b border-gray-200">
-            <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
+            <!-- Mode Toggle -->
+            <div class="mb-6">
+                <div class="flex items-center justify-center space-x-4">
+                    <button @click="weekendWarriorMode = false" 
+                            :class="!weekendWarriorMode ? 'bg-primary text-white' : 'bg-white text-gray-700 border border-gray-300'"
+                            class="px-6 py-3 rounded-lg font-semibold transition-all duration-200 hover:shadow-md">
+                        🏢 正常模式
+                    </button>
+                    <button @click="weekendWarriorMode = true; updateWeekendWarriorDates()" 
+                            :class="weekendWarriorMode ? 'bg-gradient-to-r from-orange-500 to-red-500 text-white' : 'bg-white text-gray-700 border border-gray-300'"
+                            class="px-6 py-3 rounded-lg font-semibold transition-all duration-200 hover:shadow-md">
+                        ⚡ 周末特种兵模式
+                    </button>
+                </div>
+                <div x-show="weekendWarriorMode" class="text-center mt-3 text-sm text-orange-600 font-medium">
+                    🎯 周五晚上出发 或 周六早上出发，周日晚上返回，仅直飞路线
+                </div>
+            </div>
+
+            <!-- Normal Mode Form -->
+            <div x-show="!weekendWarriorMode" class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
                 <div class="space-y-2">
                     <label class="block text-sm font-semibold text-gray-700">起飞日期</label>
                     <input type="date" 
@@ -58,6 +78,49 @@
                         <option value="all">全部</option>
                         <option value="666">仅666</option>
                     </select>
+                </div>
+            </div>
+
+            <!-- Weekend Warrior Mode Form -->
+            <div x-show="weekendWarriorMode" class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                <div class="space-y-2">
+                    <label class="block text-sm font-semibold text-gray-700">出发日期</label>
+                    <input type="date" 
+                           x-model="departureDate"
+                           @change="validateWeekendDate()"
+                           :min="getMinDate()"
+                           :max="getMaxDate()"
+                           class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-primary focus:ring-2 focus:ring-primary/20 transition-colors">
+                    <div x-show="weekendDateError" class="text-red-500 text-sm mt-1" x-text="weekendDateError"></div>
+                </div>
+                <div class="space-y-2">
+                    <label class="block text-sm font-semibold text-gray-700">起始城市</label>
+                    <input type="text" 
+                           x-model="startCity"
+                           placeholder="例如：深圳"
+                           class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-primary focus:ring-2 focus:ring-primary/20 transition-colors">
+                </div>
+                <div class="space-y-2">
+                    <label class="block text-sm font-semibold text-gray-700">适用产品</label>
+                    <select x-model="productFilter"
+                            class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-primary focus:ring-2 focus:ring-primary/20 transition-colors bg-white">
+                        <option value="all">全部</option>
+                        <option value="666">仅666</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Weekend Warrior Info Display -->
+            <div x-show="weekendWarriorMode && departureDate && !weekendDateError" class="mb-6 p-4 bg-orange-50 border border-orange-200 rounded-lg">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                    <div>
+                        <span class="font-semibold text-orange-800">出发：</span>
+                        <span x-text="departureDate ? `${departureDate} (${getWeekendDayType()})` : ''"></span>
+                    </div>
+                    <div>
+                        <span class="font-semibold text-orange-800">返程：</span>
+                        <span x-text="returnDate ? `${returnDate} (周日晚上)` : ''"></span>
+                    </div>
                 </div>
             </div>
             <button @click="searchRoutes()" 
@@ -261,7 +324,13 @@
                     routes: [],
                     filteredRoutes: [],
                     cityFilter: 'all',
-                    routeTypeFilter: 'all'
+                    routeTypeFilter: 'all',
+                    
+                    // Weekend Warrior Mode
+                    weekendWarriorMode: false,
+                    weekendDepartureDay: '',
+                    weekendDateOptions: [],
+                    weekendDateError: ''
                 };
             },
 
@@ -448,6 +517,66 @@
                 });
 
                 return routes;
+            },
+
+            // 周末特种兵模式搜索
+            findWeekendWarriorRoutes(departureDate, returnDate, startCity, productFilter, weekendDepartureDay) {
+                const routes = [];
+                const flights = this.flightData.tables[0].rows;
+                
+                // 确定时间筛选条件
+                const [dayType] = weekendDepartureDay.split('-');
+                const isEveningDeparture = dayType === 'friday'; // 周五晚上
+                const isMorningDeparture = dayType === 'saturday'; // 周六早上
+                
+                // 筛选去程航班
+                const outboundFlights = flights.filter(flight => {
+                    if (flight.起飞机场 !== startCity) return false;
+                    if (!this.isDateInSchedule(departureDate, flight.班期)) return false;
+                    if (!this.matchesProductFilter(flight, productFilter)) return false;
+                    
+                    // 时间筛选
+                    const flightTime = this.parseTime(flight.起飞时间);
+                    if (isEveningDeparture) {
+                        // 周五晚上：18:00后
+                        return flightTime >= 18 * 60;
+                    } else if (isMorningDeparture) {
+                        // 周六早上：12:00前
+                        return flightTime < 12 * 60;
+                    }
+                    return false;
+                });
+
+                // 筛选返程航班（周日晚上：18:00后）
+                const inboundFlights = flights.filter(flight => {
+                    if (flight.降落机场 !== startCity) return false;
+                    if (!this.isDateInSchedule(returnDate, flight.班期)) return false;
+                    if (!this.matchesProductFilter(flight, productFilter)) return false;
+                    
+                    // 周日晚上时间筛选
+                    const flightTime = this.parseTime(flight.起飞时间);
+                    return flightTime >= 18 * 60; // 18:00后
+                });
+
+                // 匹配往返路线
+                outboundFlights.forEach(outbound => {
+                    const destination = outbound.降落机场;
+                    const matchingInbound = inboundFlights.filter(inbound => 
+                        inbound.起飞机场 === destination
+                    );
+
+                    matchingInbound.forEach(inbound => {
+                        routes.push({
+                            id: `weekend_direct_${outbound.航班号}_${inbound.航班号}`,
+                            type: 'direct',
+                            destination: destination,
+                            outbound: outbound,
+                            inbound: inbound
+                        });
+                    });
+                });
+
+                return routes;
             }
         };
 
@@ -475,6 +604,97 @@
                 // 初始化
                 init() {
                     window.routePlannerData.loadFlightData();
+                    this.generateWeekendOptions();
+                },
+                
+                // 生成周末选项
+                generateWeekendOptions() {
+                    const options = [];
+                    const today = new Date();
+                    
+                    // 生成接下来8周的周五和周六选项
+                    for (let i = 0; i < 8; i++) {
+                        const friday = new Date(today);
+                        friday.setDate(today.getDate() + (5 - today.getDay() + 7 * i) % 7 + (today.getDay() > 5 ? 7 : 0));
+                        
+                        const saturday = new Date(friday);
+                        saturday.setDate(friday.getDate() + 1);
+                        
+                        if (friday >= today) {
+                            options.push({
+                                value: `friday-${friday.toISOString().split('T')[0]}`,
+                                label: `${friday.toLocaleDateString('zh-CN', { month: 'long', day: 'numeric' })} (周五晚上)`
+                            });
+                        }
+                        
+                        if (saturday >= today) {
+                            options.push({
+                                value: `saturday-${saturday.toISOString().split('T')[0]}`,
+                                label: `${saturday.toLocaleDateString('zh-CN', { month: 'long', day: 'numeric' })} (周六早上)`
+                            });
+                        }
+                    }
+                    
+                    this.weekendDateOptions = options;
+                },
+                
+                // 验证周末日期
+                validateWeekendDate() {
+                    if (!this.weekendWarriorMode || !this.departureDate) {
+                        this.weekendDateError = '';
+                        return;
+                    }
+                    
+                    const selectedDate = new Date(this.departureDate);
+                    const dayOfWeek = selectedDate.getDay(); // 0=周日, 1=周一, ..., 5=周五, 6=周六
+                    
+                    if (dayOfWeek !== 5 && dayOfWeek !== 6) { // 不是周五或周六
+                        this.weekendDateError = '周末特种兵模式只能选择周五或周六出发';
+                        return;
+                    }
+                    
+                    this.weekendDateError = '';
+                    
+                    // 计算对应的周日返程日期
+                    const sunday = new Date(selectedDate);
+                    const daysToSunday = (7 - selectedDate.getDay()) % 7;
+                    sunday.setDate(selectedDate.getDate() + daysToSunday);
+                    
+                    this.returnDate = sunday.toISOString().split('T')[0];
+                    
+                    // 设置weekendDepartureDay用于搜索时的时间筛选
+                    if (dayOfWeek === 5) {
+                        this.weekendDepartureDay = `friday-${this.departureDate}`;
+                    } else if (dayOfWeek === 6) {
+                        this.weekendDepartureDay = `saturday-${this.departureDate}`;
+                    }
+                },
+                
+                // 获取最小日期（今天）
+                getMinDate() {
+                    return new Date().toISOString().split('T')[0];
+                },
+                
+                // 获取最大日期（8周后）
+                getMaxDate() {
+                    const maxDate = new Date();
+                    maxDate.setDate(maxDate.getDate() + 56); // 8周
+                    return maxDate.toISOString().split('T')[0];
+                },
+                
+                // 获取周末日期类型显示文本
+                getWeekendDayType() {
+                    if (!this.departureDate) return '';
+                    const selectedDate = new Date(this.departureDate);
+                    const dayOfWeek = selectedDate.getDay();
+                    if (dayOfWeek === 5) return '周五晚上';
+                    if (dayOfWeek === 6) return '周六早上';
+                    return '';
+                },
+                
+                // 更新周末特种兵模式的日期（保留兼容性）
+                updateWeekendWarriorDates() {
+                    this.validateWeekendDate();
                 },
 
                 // 搜索路线
@@ -496,12 +716,22 @@
                     try {
                         await window.routePlannerData.loadFlightData();
                         
-                        const directRoutes = window.routePlannerData.findDirectRoutes(
-                            this.departureDate, this.returnDate, this.startCity, this.productFilter
-                        );
-                        const transferRoutes = window.routePlannerData.findTransferRoutes(
-                            this.departureDate, this.returnDate, this.startCity, this.productFilter
-                        );
+                        let directRoutes, transferRoutes = [];
+                        
+                        if (this.weekendWarriorMode) {
+                            // 周末特种兵模式：只搜索直飞路线，并应用时间筛选
+                            directRoutes = window.routePlannerData.findWeekendWarriorRoutes(
+                                this.departureDate, this.returnDate, this.startCity, this.productFilter, this.weekendDepartureDay
+                            );
+                        } else {
+                            // 正常模式：搜索直飞和中转路线
+                            directRoutes = window.routePlannerData.findDirectRoutes(
+                                this.departureDate, this.returnDate, this.startCity, this.productFilter
+                            );
+                            transferRoutes = window.routePlannerData.findTransferRoutes(
+                                this.departureDate, this.returnDate, this.startCity, this.productFilter
+                            );
+                        }
                         
                         this.routes = [...directRoutes, ...transferRoutes];
                         this.filteredRoutes = [...this.routes];
