@@ -169,11 +169,11 @@
                                                 <template x-if="route.type === 'direct'">
                                                     <div class="bg-gray-50 p-3 rounded-lg">
                                                         <div class="flex justify-between items-center mb-1">
-                                                            <span class="font-semibold text-gray-800" x-text="route.outbound.航班号"></span>
-                                                            <span class="text-gray-600" x-text="`${route.outbound.起飞机场} → ${route.outbound.降落机场}`"></span>
-                                                            <span class="text-primary font-semibold" x-text="route.outbound.起飞时间"></span>
+                                                            <span class="font-semibold text-gray-800" x-text="route.outbound['航班号']"></span>
+                                                            <span class="text-gray-600" x-text="`${route.outbound['起飞机场']} → ${route.outbound['降落机场']}`"></span>
+                                                            <span class="text-primary font-semibold" x-text="route.outbound['起飞时间']"></span>
                                                         </div>
-                                                        <div class="text-sm text-gray-500" x-text="`适用产品: ${route.outbound.适用产品}`"></div>
+                                                        <div class="text-sm text-gray-500" x-text="`适用产品: ${route.outbound['适用产品']}`"></div>
                                                     </div>
                                                 </template>
                                                 <template x-if="route.type !== 'direct'">
@@ -181,11 +181,11 @@
                                                         <template x-for="(flight, index) in route.outbound" :key="index">
                                                             <div class="bg-gray-50 p-3 rounded-lg">
                                                                 <div class="flex justify-between items-center mb-1">
-                                                                    <span class="font-semibold text-gray-800" x-text="flight.航班号"></span>
-                                                                    <span class="text-gray-600" x-text="`${flight.起飞机场} → ${flight.降落机场}`"></span>
-                                                                    <span class="text-primary font-semibold" x-text="flight.起飞时间"></span>
+                                                                    <span class="font-semibold text-gray-800" x-text="flight['航班号']"></span>
+                                                                    <span class="text-gray-600" x-text="`${flight['起飞机场']} → ${flight['降落机场']}`"></span>
+                                                                    <span class="text-primary font-semibold" x-text="flight['起飞时间']"></span>
                                                                 </div>
-                                                                <div class="text-sm text-gray-500" x-text="`适用产品: ${flight.适用产品}`"></div>
+                                                                <div class="text-sm text-gray-500" x-text="`适用产品: ${flight['适用产品']}`"></div>
                                                             </div>
                                                         </template>
                                                     </div>
@@ -203,11 +203,11 @@
                                                 <template x-if="route.type === 'direct' || route.type === 'transfer_outbound'">
                                                     <div class="bg-gray-50 p-3 rounded-lg">
                                                         <div class="flex justify-between items-center mb-1">
-                                                            <span class="font-semibold text-gray-800" x-text="route.inbound.航班号"></span>
-                                                            <span class="text-gray-600" x-text="`${route.inbound.起飞机场} → ${route.inbound.降落机场}`"></span>
-                                                            <span class="text-primary font-semibold" x-text="route.inbound.起飞时间"></span>
+                                                            <span class="font-semibold text-gray-800" x-text="route.inbound['航班号']"></span>
+                                                            <span class="text-gray-600" x-text="`${route.inbound['起飞机场']} → ${route.inbound['降落机场']}`"></span>
+                                                            <span class="text-primary font-semibold" x-text="route.inbound['起飞时间']"></span>
                                                         </div>
-                                                        <div class="text-sm text-gray-500" x-text="`适用产品: ${route.inbound.适用产品}`"></div>
+                                                        <div class="text-sm text-gray-500" x-text="`适用产品: ${route.inbound['适用产品']}`"></div>
                                                     </div>
                                                 </template>
                                                 <template x-if="route.type === 'transfer_inbound'">
@@ -215,11 +215,11 @@
                                                         <template x-for="(flight, index) in route.inbound" :key="index">
                                                             <div class="bg-gray-50 p-3 rounded-lg">
                                                                 <div class="flex justify-between items-center mb-1">
-                                                                    <span class="font-semibold text-gray-800" x-text="flight.航班号"></span>
-                                                                    <span class="text-gray-600" x-text="`${flight.起飞机场} → ${flight.降落机场}`"></span>
-                                                                    <span class="text-primary font-semibold" x-text="flight.起飞时间"></span>
+                                                                    <span class="font-semibold text-gray-800" x-text="flight['航班号']"></span>
+                                                                    <span class="text-gray-600" x-text="`${flight['起飞机场']} → ${flight['降落机场']}`"></span>
+                                                                    <span class="text-primary font-semibold" x-text="flight['起飞时间']"></span>
                                                                 </div>
-                                                                <div class="text-sm text-gray-500" x-text="`适用产品: ${flight.适用产品}`"></div>
+                                                                <div class="text-sm text-gray-500" x-text="`适用产品: ${flight['适用产品']}`"></div>
                                                             </div>
                                                         </template>
                                                     </div>
