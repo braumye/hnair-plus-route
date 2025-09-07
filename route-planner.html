@@ -1,0 +1,769 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>航班往返路线规划器</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#4facfe',
+                        secondary: '#667eea',
+                        accent: '#764ba2'
+                    }
+                }
+            }
+        }
+    </script>
+    <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
+</head>
+<body class="bg-gradient-to-br from-blue-400 via-purple-500 to-purple-700 min-h-screen">
+    
+    <div class="container mx-auto px-4 py-8 max-w-6xl" x-data="routePlanner">
+        <!-- Header -->
+        <div class="bg-gradient-to-r from-primary to-blue-400 text-white rounded-t-2xl p-8 text-center">
+            <h1 class="text-4xl font-bold mb-3">航班往返路线规划器</h1>
+            <p class="text-lg opacity-90">智能规划您的往返航班路线，支持直飞和一次中转</p>
+        </div>
+
+        <!-- Search Form -->
+        <div class="bg-gray-50 p-8 border-b border-gray-200">
+            <!-- Mode Toggle -->
+            <div class="mb-6">
+                <div class="flex items-center justify-center space-x-4">
+                    <button @click="weekendWarriorMode = false" 
+                            :class="!weekendWarriorMode ? 'bg-primary text-white' : 'bg-white text-gray-700 border border-gray-300'"
+                            class="px-6 py-3 rounded-lg font-semibold transition-all duration-200 hover:shadow-md">
+                        🏢 正常模式
+                    </button>
+                    <button @click="weekendWarriorMode = true; updateWeekendWarriorDates()" 
+                            :class="weekendWarriorMode ? 'bg-gradient-to-r from-orange-500 to-red-500 text-white' : 'bg-white text-gray-700 border border-gray-300'"
+                            class="px-6 py-3 rounded-lg font-semibold transition-all duration-200 hover:shadow-md">
+                        ⚡ 周末特种兵模式
+                    </button>
+                </div>
+                <div x-show="weekendWarriorMode" class="text-center mt-3 text-sm text-orange-600 font-medium">
+                    🎯 周五晚上出发 或 周六早上出发，周日晚上返回，仅直飞路线
+                </div>
+            </div>
+
+            <!-- Normal Mode Form -->
+            <div x-show="!weekendWarriorMode" class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
+                <div class="space-y-2">
+                    <label class="block text-sm font-semibold text-gray-700">起飞日期</label>
+                    <input type="date" 
+                           x-model="departureDate"
+                           class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-primary focus:ring-2 focus:ring-primary/20 transition-colors">
+                </div>
+                <div class="space-y-2">
+                    <label class="block text-sm font-semibold text-gray-700">返程日期</label>
+                    <input type="date" 
+                           x-model="returnDate"
+                           class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-primary focus:ring-2 focus:ring-primary/20 transition-colors">
+                </div>
+                <div class="space-y-2">
+                    <label class="block text-sm font-semibold text-gray-700">起始城市</label>
+                    <input type="text" 
+                           x-model="startCity"
+                           placeholder="例如：深圳"
+                           class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-primary focus:ring-2 focus:ring-primary/20 transition-colors">
+                </div>
+                <div class="space-y-2">
+                    <label class="block text-sm font-semibold text-gray-700">适用产品</label>
+                    <select x-model="productFilter"
+                            class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-primary focus:ring-2 focus:ring-primary/20 transition-colors bg-white">
+                        <option value="all">全部</option>
+                        <option value="666">仅666</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Weekend Warrior Mode Form -->
+            <div x-show="weekendWarriorMode" class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                <div class="space-y-2">
+                    <label class="block text-sm font-semibold text-gray-700">出发日期</label>
+                    <input type="date" 
+                           x-model="departureDate"
+                           @change="validateWeekendDate()"
+                           :min="getMinDate()"
+                           :max="getMaxDate()"
+                           class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-primary focus:ring-2 focus:ring-primary/20 transition-colors">
+                    <div x-show="weekendDateError" class="text-red-500 text-sm mt-1" x-text="weekendDateError"></div>
+                </div>
+                <div class="space-y-2">
+                    <label class="block text-sm font-semibold text-gray-700">起始城市</label>
+                    <input type="text" 
+                           x-model="startCity"
+                           placeholder="例如：深圳"
+                           class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-primary focus:ring-2 focus:ring-primary/20 transition-colors">
+                </div>
+                <div class="space-y-2">
+                    <label class="block text-sm font-semibold text-gray-700">适用产品</label>
+                    <select x-model="productFilter"
+                            class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-primary focus:ring-2 focus:ring-primary/20 transition-colors bg-white">
+                        <option value="all">全部</option>
+                        <option value="666">仅666</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Weekend Warrior Info Display -->
+            <div x-show="weekendWarriorMode && departureDate && !weekendDateError" class="mb-6 p-4 bg-orange-50 border border-orange-200 rounded-lg">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                    <div>
+                        <span class="font-semibold text-orange-800">出发：</span>
+                        <span x-text="departureDate ? `${departureDate} (${getWeekendDayType()})` : ''"></span>
+                    </div>
+                    <div>
+                        <span class="font-semibold text-orange-800">返程：</span>
+                        <span x-text="returnDate ? `${returnDate} (周日晚上)` : ''"></span>
+                    </div>
+                </div>
+            </div>
+            <button @click="searchRoutes()" 
+                    :disabled="loading"
+                    class="w-full bg-gradient-to-r from-secondary to-accent text-white font-semibold py-4 px-8 rounded-lg hover:shadow-lg transform hover:-translate-y-1 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none">
+                <span x-show="!loading">搜索路线</span>
+                <span x-show="loading" class="flex items-center justify-center">
+                    <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    搜索中...
+                </span>
+            </button>
+        </div>
+
+        <!-- Results Section -->
+        <div x-show="showResults" class="bg-white rounded-b-2xl shadow-xl">
+            <!-- Results Header -->
+            <div class="flex justify-between items-center p-6 border-b border-gray-200">
+                <h2 class="text-2xl font-bold text-gray-800">搜索结果</h2>
+                <span class="bg-primary text-white px-4 py-2 rounded-full font-semibold" x-text="`${filteredRoutes.length} 条路线`"></span>
+            </div>
+
+            <!-- Filters -->
+            <div x-show="routes.length > 0" class="bg-gray-50 p-6 border-b border-gray-200">
+                <div class="flex flex-col sm:flex-row gap-6">
+                    <div class="space-y-2">
+                        <label class="block text-sm font-semibold text-gray-700">目的地筛选</label>
+                        <select x-model="cityFilter" 
+                                @change="applyFilters()"
+                                class="px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-primary focus:ring-2 focus:ring-primary/20 transition-colors bg-white">
+                            <option value="all">全部城市</option>
+                            <template x-for="city in availableCities" :key="city">
+                                <option :value="city" x-text="city"></option>
+                            </template>
+                        </select>
+                    </div>
+                    <div class="space-y-2">
+                        <label class="block text-sm font-semibold text-gray-700">路线类型</label>
+                        <select x-model="routeTypeFilter" 
+                                @change="applyFilters()"
+                                class="px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-primary focus:ring-2 focus:ring-primary/20 transition-colors bg-white">
+                            <option value="all">全部</option>
+                            <option value="direct">仅直飞</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Results Container -->
+            <div class="p-6">
+                <!-- No Results -->
+                <div x-show="routes.length === 0 && !loading" class="text-center py-16">
+                    <div class="text-6xl mb-4">✈️</div>
+                    <h3 class="text-xl font-semibold text-gray-600 mb-2">未找到合适的路线</h3>
+                    <p class="text-gray-500">请尝试调整搜索条件或选择其他日期</p>
+                </div>
+
+                <!-- Error Message -->
+                <div x-show="errorMessage" class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-4" x-text="errorMessage"></div>
+
+                <!-- Routes by Destination -->
+                <template x-for="destination in Object.keys(groupedRoutes)" :key="destination">
+                    <div class="mb-8 border border-gray-200 rounded-xl overflow-hidden bg-white">
+                        <!-- Destination Header -->
+                        <div class="bg-gradient-to-r from-gray-50 to-gray-100 p-6 border-b border-gray-200">
+                            <div class="flex justify-between items-center">
+                                <h3 class="text-xl font-bold text-gray-800 flex items-center">
+                                    <span class="text-2xl mr-2">🏙️</span>
+                                    <span x-text="destination"></span>
+                                </h3>
+                                <div class="flex gap-2">
+                                    <span class="bg-gray-500 text-white px-3 py-1 rounded-full text-sm font-semibold" 
+                                          x-text="`${groupedRoutes[destination].length} 条路线`"></span>
+                                    <span x-show="groupedRoutes[destination].some(r => r.type === 'direct')" 
+                                          class="bg-green-500 text-white px-2 py-1 rounded-full text-xs font-semibold">直飞</span>
+                                    <span x-show="groupedRoutes[destination].some(r => r.type !== 'direct')" 
+                                          class="bg-yellow-500 text-gray-900 px-2 py-1 rounded-full text-xs font-semibold">中转</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Routes for this destination -->
+                        <div class="p-4 space-y-4">
+                            <template x-for="(route, routeIndex) in groupedRoutes[destination]" :key="`${destination}-${routeIndex}`">
+                                <div class="border border-gray-200 rounded-lg hover:border-primary hover:shadow-md transition-all duration-200 overflow-hidden">
+                                    <!-- Route Header -->
+                                    <div class="bg-gray-50 p-4 border-b border-gray-200">
+                                        <div class="flex justify-between items-center">
+                                            <div>
+                                                <span :class="route.type === 'direct' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'" 
+                                                      class="px-3 py-1 rounded-full text-xs font-semibold uppercase mb-2 inline-block"
+                                                      x-text="route.type === 'direct' ? '直飞' : '中转'"></span>
+                                                <div class="font-semibold text-gray-800" x-text="`${route.destination} 往返路线${route.transferCity ? '（经' + route.transferCity + '中转）' : ''}`"></div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Flight Details -->
+                                    <div class="p-4 space-y-6">
+                                        <!-- Outbound -->
+                                        <div>
+                                            <div class="flex items-center text-primary font-semibold mb-3">
+                                                <span class="text-lg mr-2">✈️</span>
+                                                <span x-text="`去程 - ${departureDate}`"></span>
+                                            </div>
+                                            <div class="space-y-2">
+                                                <template x-if="route.type === 'direct'">
+                                                    <div class="bg-gray-50 p-3 rounded-lg">
+                                                        <div class="flex justify-between items-center mb-1">
+                                                            <span class="font-semibold text-gray-800" x-text="route.outbound['航班号']"></span>
+                                                            <span class="text-gray-600" x-text="`${route.outbound['起飞机场']} → ${route.outbound['降落机场']}`"></span>
+                                                            <span class="text-primary font-semibold" x-text="route.outbound['起飞时间']"></span>
+                                                        </div>
+                                                        <div class="text-sm text-gray-500" x-text="`适用产品: ${route.outbound['适用产品']}`"></div>
+                                                    </div>
+                                                </template>
+                                                <template x-if="route.type !== 'direct'">
+                                                    <div class="space-y-2">
+                                                        <template x-for="(flight, index) in route.outbound" :key="index">
+                                                            <div class="bg-gray-50 p-3 rounded-lg">
+                                                                <div class="flex justify-between items-center mb-1">
+                                                                    <span class="font-semibold text-gray-800" x-text="flight['航班号']"></span>
+                                                                    <span class="text-gray-600" x-text="`${flight['起飞机场']} → ${flight['降落机场']}`"></span>
+                                                                    <span class="text-primary font-semibold" x-text="flight['起飞时间']"></span>
+                                                                </div>
+                                                                <div class="text-sm text-gray-500" x-text="`适用产品: ${flight['适用产品']}`"></div>
+                                                            </div>
+                                                        </template>
+                                                    </div>
+                                                </template>
+                                            </div>
+                                        </div>
+
+                                        <!-- Inbound -->
+                                        <div>
+                                            <div class="flex items-center text-primary font-semibold mb-3">
+                                                <span class="text-lg mr-2">✈️</span>
+                                                <span x-text="`返程 - ${returnDate}`"></span>
+                                            </div>
+                                            <div class="space-y-2">
+                                                <template x-if="route.type === 'direct' || route.type === 'transfer_outbound'">
+                                                    <div class="bg-gray-50 p-3 rounded-lg">
+                                                        <div class="flex justify-between items-center mb-1">
+                                                            <span class="font-semibold text-gray-800" x-text="route.inbound['航班号']"></span>
+                                                            <span class="text-gray-600" x-text="`${route.inbound['起飞机场']} → ${route.inbound['降落机场']}`"></span>
+                                                            <span class="text-primary font-semibold" x-text="route.inbound['起飞时间']"></span>
+                                                        </div>
+                                                        <div class="text-sm text-gray-500" x-text="`适用产品: ${route.inbound['适用产品']}`"></div>
+                                                    </div>
+                                                </template>
+                                                <template x-if="route.type === 'transfer_inbound'">
+                                                    <div class="space-y-2">
+                                                        <template x-for="(flight, index) in route.inbound" :key="index">
+                                                            <div class="bg-gray-50 p-3 rounded-lg">
+                                                                <div class="flex justify-between items-center mb-1">
+                                                                    <span class="font-semibold text-gray-800" x-text="flight['航班号']"></span>
+                                                                    <span class="text-gray-600" x-text="`${flight['起飞机场']} → ${flight['降落机场']}`"></span>
+                                                                    <span class="text-primary font-semibold" x-text="flight['起飞时间']"></span>
+                                                                </div>
+                                                                <div class="text-sm text-gray-500" x-text="`适用产品: ${flight['适用产品']}`"></div>
+                                                            </div>
+                                                        </template>
+                                                    </div>
+                                                </template>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+                </template>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 全局数据存储
+        window.routePlannerData = {
+            flightData: null,
+            
+            // 初始化数据
+            init() {
+                // 设置默认日期
+                const today = new Date();
+                const tomorrow = new Date(today);
+                tomorrow.setDate(tomorrow.getDate() + 1);
+                const nextWeek = new Date(today);
+                nextWeek.setDate(nextWeek.getDate() + 7);
+
+                return {
+                    departureDate: tomorrow.toISOString().split('T')[0],
+                    returnDate: nextWeek.toISOString().split('T')[0],
+                    startCity: '',
+                    productFilter: 'all',
+                    loading: false,
+                    showResults: false,
+                    errorMessage: '',
+                    routes: [],
+                    filteredRoutes: [],
+                    cityFilter: 'all',
+                    routeTypeFilter: 'all',
+                    
+                    // Weekend Warrior Mode
+                    weekendWarriorMode: false,
+                    weekendDepartureDay: '',
+                    weekendDateOptions: [],
+                    weekendDateError: ''
+                };
+            },
+
+            // 加载航班数据
+            async loadFlightData() {
+                if (this.flightData) return this.flightData;
+                
+                try {
+                    const response = await fetch('json/latest.json');
+                    this.flightData = await response.json();
+                    console.log('航班数据加载成功，共', this.flightData.tables[0].rows.length, '条航班');
+                    return this.flightData;
+                } catch (error) {
+                    console.error('加载航班数据失败:', error);
+                    throw new Error('无法加载航班数据，请检查文件路径');
+                }
+            },
+
+            // 工具函数
+            parseTime(timeStr) {
+                const [hours, minutes] = timeStr.split(':').map(Number);
+                return hours * 60 + minutes;
+            },
+
+            decodeSchedule(schedule) {
+                if (schedule === '1234567') {
+                    return [1, 2, 3, 4, 5, 6, 7];
+                }
+                return schedule.split('').map(Number);
+            },
+
+            isDateInSchedule(date, schedule) {
+                const dayOfWeek = new Date(date).getDay();
+                const weekDay = dayOfWeek === 0 ? 7 : dayOfWeek;
+                const scheduleDays = this.decodeSchedule(schedule);
+                return scheduleDays.includes(weekDay);
+            },
+
+            matchesProductFilter(flight, productFilter) {
+                if (productFilter === 'all') {
+                    return true;
+                }
+                if (productFilter === '666') {
+                    return flight.适用产品 === '666/2666';
+                }
+                return false;
+            },
+
+            // 搜索直飞路线
+            findDirectRoutes(departureDate, returnDate, startCity, productFilter) {
+                const routes = [];
+                const flights = this.flightData.tables[0].rows;
+
+                const outboundFlights = flights.filter(flight => 
+                    flight.起飞机场 === startCity && 
+                    this.isDateInSchedule(departureDate, flight.班期) &&
+                    this.matchesProductFilter(flight, productFilter)
+                );
+
+                const inboundFlights = flights.filter(flight => 
+                    flight.降落机场 === startCity && 
+                    this.isDateInSchedule(returnDate, flight.班期) &&
+                    this.matchesProductFilter(flight, productFilter)
+                );
+
+                outboundFlights.forEach(outbound => {
+                    inboundFlights.forEach(inbound => {
+                        if (outbound.降落机场 === inbound.起飞机场) {
+                            routes.push({
+                                id: `direct_${outbound.航班号}_${inbound.航班号}`,
+                                type: 'direct',
+                                destination: outbound.降落机场,
+                                outbound: outbound,
+                                inbound: inbound
+                            });
+                        }
+                    });
+                });
+
+                return routes;
+            },
+
+            // 搜索中转路线
+            findTransferRoutes(departureDate, returnDate, startCity, productFilter) {
+                const routes = [];
+                const flights = this.flightData.tables[0].rows;
+
+                // 去程中转
+                const outboundFirstLeg = flights.filter(flight => 
+                    flight.起飞机场 === startCity && 
+                    this.isDateInSchedule(departureDate, flight.班期) &&
+                    this.matchesProductFilter(flight, productFilter)
+                );
+
+                outboundFirstLeg.forEach(firstLeg => {
+                    const transferCity = firstLeg.降落机场;
+                    
+                    const outboundSecondLeg = flights.filter(flight => 
+                        flight.起飞机场 === transferCity && 
+                        this.isDateInSchedule(departureDate, flight.班期) &&
+                        flight.降落机场 !== startCity &&
+                        this.matchesProductFilter(flight, productFilter)
+                    );
+
+                    outboundSecondLeg.forEach(secondLeg => {
+                        const destination = secondLeg.降落机场;
+                        
+                        // 检查中转时间：第一程12点前，第二程12点后
+                        const firstLegTime = this.parseTime(firstLeg.起飞时间);
+                        const secondLegTime = this.parseTime(secondLeg.起飞时间);
+                        const noonTime = 12 * 60;
+                        
+                        if (firstLegTime >= noonTime || secondLegTime < noonTime) {
+                            return;
+                        }
+                        
+                        const inboundDirect = flights.filter(flight => 
+                            flight.起飞机场 === destination && 
+                            flight.降落机场 === startCity && 
+                            this.isDateInSchedule(returnDate, flight.班期) &&
+                            this.matchesProductFilter(flight, productFilter)
+                        );
+
+                        inboundDirect.forEach(inbound => {
+                            routes.push({
+                                id: `transfer_out_${firstLeg.航班号}_${secondLeg.航班号}_${inbound.航班号}`,
+                                type: 'transfer_outbound',
+                                destination: destination,
+                                transferCity: transferCity,
+                                outbound: [firstLeg, secondLeg],
+                                inbound: inbound
+                            });
+                        });
+                    });
+                });
+
+                // 返程中转
+                const outboundDirect = flights.filter(flight => 
+                    flight.起飞机场 === startCity && 
+                    this.isDateInSchedule(departureDate, flight.班期) &&
+                    this.matchesProductFilter(flight, productFilter)
+                );
+
+                outboundDirect.forEach(outbound => {
+                    const destination = outbound.降落机场;
+                    
+                    const inboundFirstLeg = flights.filter(flight => 
+                        flight.起飞机场 === destination && 
+                        this.isDateInSchedule(returnDate, flight.班期) &&
+                        flight.降落机场 !== startCity &&
+                        this.matchesProductFilter(flight, productFilter)
+                    );
+
+                    inboundFirstLeg.forEach(firstLeg => {
+                        const transferCity = firstLeg.降落机场;
+                        
+                        const inboundSecondLeg = flights.filter(flight => 
+                            flight.起飞机场 === transferCity && 
+                            flight.降落机场 === startCity && 
+                            this.isDateInSchedule(returnDate, flight.班期) &&
+                            this.matchesProductFilter(flight, productFilter)
+                        );
+
+                        inboundSecondLeg.forEach(secondLeg => {
+                            // 检查返程中转时间
+                            const firstLegTime = this.parseTime(firstLeg.起飞时间);
+                            const secondLegTime = this.parseTime(secondLeg.起飞时间);
+                            const noonTime = 12 * 60;
+                            
+                            if (firstLegTime >= noonTime || secondLegTime < noonTime) {
+                                return;
+                            }
+                            
+                            routes.push({
+                                id: `transfer_in_${outbound.航班号}_${firstLeg.航班号}_${secondLeg.航班号}`,
+                                type: 'transfer_inbound',
+                                destination: destination,
+                                transferCity: transferCity,
+                                outbound: outbound,
+                                inbound: [firstLeg, secondLeg]
+                            });
+                        });
+                    });
+                });
+
+                return routes;
+            },
+
+            // 周末特种兵模式搜索
+            findWeekendWarriorRoutes(departureDate, returnDate, startCity, productFilter, weekendDepartureDay) {
+                const routes = [];
+                const flights = this.flightData.tables[0].rows;
+                
+                // 确定时间筛选条件
+                const [dayType] = weekendDepartureDay.split('-');
+                const isEveningDeparture = dayType === 'friday'; // 周五晚上
+                const isMorningDeparture = dayType === 'saturday'; // 周六早上
+                
+                // 筛选去程航班
+                const outboundFlights = flights.filter(flight => {
+                    if (flight.起飞机场 !== startCity) return false;
+                    if (!this.isDateInSchedule(departureDate, flight.班期)) return false;
+                    if (!this.matchesProductFilter(flight, productFilter)) return false;
+                    
+                    // 时间筛选
+                    const flightTime = this.parseTime(flight.起飞时间);
+                    if (isEveningDeparture) {
+                        // 周五晚上：18:00后
+                        return flightTime >= 18 * 60;
+                    } else if (isMorningDeparture) {
+                        // 周六早上：12:00前
+                        return flightTime < 12 * 60;
+                    }
+                    return false;
+                });
+
+                // 筛选返程航班（周日晚上：18:00后）
+                const inboundFlights = flights.filter(flight => {
+                    if (flight.降落机场 !== startCity) return false;
+                    if (!this.isDateInSchedule(returnDate, flight.班期)) return false;
+                    if (!this.matchesProductFilter(flight, productFilter)) return false;
+                    
+                    // 周日晚上时间筛选
+                    const flightTime = this.parseTime(flight.起飞时间);
+                    return flightTime >= 18 * 60; // 18:00后
+                });
+
+                // 匹配往返路线
+                outboundFlights.forEach(outbound => {
+                    const destination = outbound.降落机场;
+                    const matchingInbound = inboundFlights.filter(inbound => 
+                        inbound.起飞机场 === destination
+                    );
+
+                    matchingInbound.forEach(inbound => {
+                        routes.push({
+                            id: `weekend_direct_${outbound.航班号}_${inbound.航班号}`,
+                            type: 'direct',
+                            destination: destination,
+                            outbound: outbound,
+                            inbound: inbound
+                        });
+                    });
+                });
+
+                return routes;
+            }
+        };
+
+        // Alpine.js 组件
+        function routePlanner() {
+            return {
+                ...window.routePlannerData.init(),
+
+                // 计算属性
+                get availableCities() {
+                    return [...new Set(this.routes.map(route => route.destination))].sort();
+                },
+                
+                get groupedRoutes() {
+                    const grouped = {};
+                    this.filteredRoutes.forEach(route => {
+                        if (!grouped[route.destination]) {
+                            grouped[route.destination] = [];
+                        }
+                        grouped[route.destination].push(route);
+                    });
+                    return grouped;
+                },
+
+                // 初始化
+                init() {
+                    window.routePlannerData.loadFlightData();
+                    this.generateWeekendOptions();
+                },
+                
+                // 生成周末选项
+                generateWeekendOptions() {
+                    const options = [];
+                    const today = new Date();
+                    
+                    // 生成接下来8周的周五和周六选项
+                    for (let i = 0; i < 8; i++) {
+                        const friday = new Date(today);
+                        friday.setDate(today.getDate() + (5 - today.getDay() + 7 * i) % 7 + (today.getDay() > 5 ? 7 : 0));
+                        
+                        const saturday = new Date(friday);
+                        saturday.setDate(friday.getDate() + 1);
+                        
+                        if (friday >= today) {
+                            options.push({
+                                value: `friday-${friday.toISOString().split('T')[0]}`,
+                                label: `${friday.toLocaleDateString('zh-CN', { month: 'long', day: 'numeric' })} (周五晚上)`
+                            });
+                        }
+                        
+                        if (saturday >= today) {
+                            options.push({
+                                value: `saturday-${saturday.toISOString().split('T')[0]}`,
+                                label: `${saturday.toLocaleDateString('zh-CN', { month: 'long', day: 'numeric' })} (周六早上)`
+                            });
+                        }
+                    }
+                    
+                    this.weekendDateOptions = options;
+                },
+                
+                // 验证周末日期
+                validateWeekendDate() {
+                    if (!this.weekendWarriorMode || !this.departureDate) {
+                        this.weekendDateError = '';
+                        return;
+                    }
+                    
+                    const selectedDate = new Date(this.departureDate);
+                    const dayOfWeek = selectedDate.getDay(); // 0=周日, 1=周一, ..., 5=周五, 6=周六
+                    
+                    if (dayOfWeek !== 5 && dayOfWeek !== 6) { // 不是周五或周六
+                        this.weekendDateError = '周末特种兵模式只能选择周五或周六出发';
+                        return;
+                    }
+                    
+                    this.weekendDateError = '';
+                    
+                    // 计算对应的周日返程日期
+                    const sunday = new Date(selectedDate);
+                    const daysToSunday = (7 - selectedDate.getDay()) % 7;
+                    sunday.setDate(selectedDate.getDate() + daysToSunday);
+                    
+                    this.returnDate = sunday.toISOString().split('T')[0];
+                    
+                    // 设置weekendDepartureDay用于搜索时的时间筛选
+                    if (dayOfWeek === 5) {
+                        this.weekendDepartureDay = `friday-${this.departureDate}`;
+                    } else if (dayOfWeek === 6) {
+                        this.weekendDepartureDay = `saturday-${this.departureDate}`;
+                    }
+                },
+                
+                // 获取最小日期（今天）
+                getMinDate() {
+                    return new Date().toISOString().split('T')[0];
+                },
+                
+                // 获取最大日期（8周后）
+                getMaxDate() {
+                    const maxDate = new Date();
+                    maxDate.setDate(maxDate.getDate() + 56); // 8周
+                    return maxDate.toISOString().split('T')[0];
+                },
+                
+                // 获取周末日期类型显示文本
+                getWeekendDayType() {
+                    if (!this.departureDate) return '';
+                    const selectedDate = new Date(this.departureDate);
+                    const dayOfWeek = selectedDate.getDay();
+                    if (dayOfWeek === 5) return '周五晚上';
+                    if (dayOfWeek === 6) return '周六早上';
+                    return '';
+                },
+                
+                // 更新周末特种兵模式的日期（保留兼容性）
+                updateWeekendWarriorDates() {
+                    this.validateWeekendDate();
+                },
+
+                // 搜索路线
+                async searchRoutes() {
+                    if (!this.departureDate || !this.returnDate || !this.startCity) {
+                        this.errorMessage = '请填写完整的搜索条件';
+                        return;
+                    }
+
+                    if (new Date(this.departureDate) >= new Date(this.returnDate)) {
+                        this.errorMessage = '返程日期必须晚于起飞日期';
+                        return;
+                    }
+
+                    this.loading = true;
+                    this.errorMessage = '';
+                    this.showResults = true;
+
+                    try {
+                        await window.routePlannerData.loadFlightData();
+                        
+                        let directRoutes, transferRoutes = [];
+                        
+                        if (this.weekendWarriorMode) {
+                            // 周末特种兵模式：只搜索直飞路线，并应用时间筛选
+                            directRoutes = window.routePlannerData.findWeekendWarriorRoutes(
+                                this.departureDate, this.returnDate, this.startCity, this.productFilter, this.weekendDepartureDay
+                            );
+                        } else {
+                            // 正常模式：搜索直飞和中转路线
+                            directRoutes = window.routePlannerData.findDirectRoutes(
+                                this.departureDate, this.returnDate, this.startCity, this.productFilter
+                            );
+                            transferRoutes = window.routePlannerData.findTransferRoutes(
+                                this.departureDate, this.returnDate, this.startCity, this.productFilter
+                            );
+                        }
+                        
+                        this.routes = [...directRoutes, ...transferRoutes];
+                        this.filteredRoutes = [...this.routes];
+                        
+                        // 重置筛选器
+                        this.cityFilter = 'all';
+                        this.routeTypeFilter = 'all';
+                        
+                    } catch (error) {
+                        console.error('搜索过程中出现错误:', error);
+                        this.errorMessage = error.message || '搜索过程中出现错误，请重试';
+                    } finally {
+                        this.loading = false;
+                    }
+                },
+
+                // 应用筛选
+                applyFilters() {
+                    let filtered = [...this.routes];
+                    
+                    if (this.cityFilter !== 'all') {
+                        filtered = filtered.filter(route => route.destination === this.cityFilter);
+                    }
+                    
+                    if (this.routeTypeFilter === 'direct') {
+                        filtered = filtered.filter(route => route.type === 'direct');
+                    }
+                    
+                    this.filteredRoutes = filtered;
+                }
+            }
+        }
+    </script>
+</body>
+</html>

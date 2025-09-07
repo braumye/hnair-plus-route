@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>航班往返路线规划器</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#4facfe',
+                        secondary: '#667eea',
+                        accent: '#764ba2'
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-gradient-to-br from-blue-400 via-purple-500 to-purple-700 min-h-screen">
+    
+    <div class="container mx-auto px-4 py-8 max-w-6xl">
+        <!-- Header -->
+        <div class="bg-gradient-to-r from-primary to-blue-400 text-white rounded-t-2xl p-8 text-center">
+            <h1 class="text-4xl font-bold mb-3">航班往返路线规划器</h1>
+            <p class="text-lg opacity-90">智能规划您的往返航班路线，支持直飞和一次中转</p>
+        </div>
+
+        <!-- Search Form -->
+        <div class="bg-gray-50 p-8 border-b border-gray-200">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
+                <div class="space-y-2">
+                    <label class="block text-sm font-semibold text-gray-700">起飞日期</label>
+                    <input type="date" 
+                           id="departureDate"
+                           class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-primary focus:ring-2 focus:ring-primary/20 transition-colors">
+                </div>
+                <div class="space-y-2">
+                    <label class="block text-sm font-semibold text-gray-700">返程日期</label>
+                    <input type="date" 
+                           id="returnDate"
+                           class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-primary focus:ring-2 focus:ring-primary/20 transition-colors">
+                </div>
+                <div class="space-y-2">
+                    <label class="block text-sm font-semibold text-gray-700">起始城市</label>
+                    <input type="text" 
+                           id="startCity"
+                           placeholder="例如：深圳"
+                           class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-primary focus:ring-2 focus:ring-primary/20 transition-colors">
+                </div>
+                <div class="space-y-2">
+                    <label class="block text-sm font-semibold text-gray-700">适用产品</label>
+                    <select id="productFilter"
+                            class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-primary focus:ring-2 focus:ring-primary/20 transition-colors bg-white">
+                        <option value="all">全部</option>
+                        <option value="666">仅666</option>
+                    </select>
+                </div>
+            </div>
+            <button onclick="searchRoutes()" 
+                    id="searchBtn"
+                    class="w-full bg-gradient-to-r from-secondary to-accent text-white font-semibold py-4 px-8 rounded-lg hover:shadow-lg transform hover:-translate-y-1 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none">
+                搜索路线
+            </button>
+        </div>
+
+        <!-- Results Section -->
+        <div id="resultsSection" class="bg-white rounded-b-2xl shadow-xl" style="display: none;">
+            <!-- Results Header -->
+            <div class="flex justify-between items-center p-6 border-b border-gray-200">
+                <h2 class="text-2xl font-bold text-gray-800">搜索结果</h2>
+                <span id="resultsCount" class="bg-primary text-white px-4 py-2 rounded-full font-semibold">0 条路线</span>
+            </div>
+
+            <!-- Filters -->
+            <div id="resultsFilters" class="bg-gray-50 p-6 border-b border-gray-200" style="display: none;">
+                <div class="flex flex-col sm:flex-row gap-6">
+                    <div class="space-y-2">
+                        <label class="block text-sm font-semibold text-gray-700">目的地筛选</label>
+                        <select id="cityFilter" 
+                                onchange="applyFilters()"
+                                class="px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-primary focus:ring-2 focus:ring-primary/20 transition-colors bg-white">
+                            <option value="all">全部城市</option>
+                        </select>
+                    </div>
+                    <div class="space-y-2">
+                        <label class="block text-sm font-semibold text-gray-700">路线类型</label>
+                        <select id="routeTypeFilter" 
+                                onchange="applyFilters()"
+                                class="px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-primary focus:ring-2 focus:ring-primary/20 transition-colors bg-white">
+                            <option value="all">全部</option>
+                            <option value="direct">仅直飞</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Results Container -->
+            <div id="resultsContainer" class="p-6"></div>
+        </div>
+    </div>
+
+    <script>
+        let flightData = null;
+        let originalRoutes = [];
+        let currentDepartureDate = '';
+        let currentReturnDate = '';
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            // Set default dates
+            const today = new Date();
+            const tomorrow = new Date(today);
+            tomorrow.setDate(tomorrow.getDate() + 1);
+            const nextWeek = new Date(today);
+            nextWeek.setDate(nextWeek.getDate() + 7);
+
+            document.getElementById('departureDate').value = tomorrow.toISOString().split('T')[0];
+            document.getElementById('returnDate').value = nextWeek.toISOString().split('T')[0];
+            
+            // Load flight data
+            loadFlightData();
+        });
+
+        // Load flight data
+        async function loadFlightData() {
+            try {
+                const response = await fetch('json/latest.json');
+                flightData = await response.json();
+                console.log('航班数据加载成功，共', flightData.tables[0].rows.length, '条航班');
+            } catch (error) {
+                console.error('加载航班数据失败:', error);
+                showError('无法加载航班数据，请检查文件路径');
+            }
+        }
+
+        // Utility functions
+        function parseTime(timeStr) {
+            const [hours, minutes] = timeStr.split(':').map(Number);
+            return hours * 60 + minutes;
+        }
+
+        function decodeSchedule(schedule) {
+            if (schedule === '1234567') {
+                return [1, 2, 3, 4, 5, 6, 7];
+            }
+            return schedule.split('').map(Number);
+        }
+
+        function isDateInSchedule(date, schedule) {
+            const dayOfWeek = new Date(date).getDay();
+            const weekDay = dayOfWeek === 0 ? 7 : dayOfWeek;
+            const scheduleDays = decodeSchedule(schedule);
+            return scheduleDays.includes(weekDay);
+        }
+
+        function matchesProductFilter(flight, productFilter) {
+            if (productFilter === 'all') {
+                return true;
+            }
+            if (productFilter === '666') {
+                return flight.适用产品 === '666/2666';
+            }
+            return false;
+        }
+
+        // Search functions
+        function findDirectRoutes(departureDate, returnDate, startCity, productFilter) {
+            const routes = [];
+            const flights = flightData.tables[0].rows;
+
+            const outboundFlights = flights.filter(flight => 
+                flight.起飞机场 === startCity && 
+                isDateInSchedule(departureDate, flight.班期) &&
+                matchesProductFilter(flight, productFilter)
+            );
+
+            const inboundFlights = flights.filter(flight => 
+                flight.降落机场 === startCity && 
+                isDateInSchedule(returnDate, flight.班期) &&
+                matchesProductFilter(flight, productFilter)
+            );
+
+            outboundFlights.forEach(outbound => {
+                inboundFlights.forEach(inbound => {
+                    if (outbound.降落机场 === inbound.起飞机场) {
+                        routes.push({
+                            id: `direct_${outbound.航班号}_${inbound.航班号}`,
+                            type: 'direct',
+                            destination: outbound.降落机场,
+                            outbound: outbound,
+                            inbound: inbound
+                        });
+                    }
+                });
+            });
+
+            return routes;
+        }
+
+        function findTransferRoutes(departureDate, returnDate, startCity, productFilter) {
+            const routes = [];
+            const flights = flightData.tables[0].rows;
+
+            // 去程中转
+            const outboundFirstLeg = flights.filter(flight => 
+                flight.起飞机场 === startCity && 
+                isDateInSchedule(departureDate, flight.班期) &&
+                matchesProductFilter(flight, productFilter)
+            );
+
+            outboundFirstLeg.forEach(firstLeg => {
+                const transferCity = firstLeg.降落机场;
+                
+                const outboundSecondLeg = flights.filter(flight => 
+                    flight.起飞机场 === transferCity && 
+                    isDateInSchedule(departureDate, flight.班期) &&
+                    flight.降落机场 !== startCity &&
+                    matchesProductFilter(flight, productFilter)
+                );
+
+                outboundSecondLeg.forEach(secondLeg => {
+                    const destination = secondLeg.降落机场;
+                    
+                    // 检查中转时间：第一程12点前，第二程12点后
+                    const firstLegTime = parseTime(firstLeg.起飞时间);
+                    const secondLegTime = parseTime(secondLeg.起飞时间);
+                    const noonTime = 12 * 60;
+                    
+                    if (firstLegTime >= noonTime || secondLegTime < noonTime) {
+                        return;
+                    }
+                    
+                    const inboundDirect = flights.filter(flight => 
+                        flight.起飞机场 === destination && 
+                        flight.降落机场 === startCity && 
+                        isDateInSchedule(returnDate, flight.班期) &&
+                        matchesProductFilter(flight, productFilter)
+                    );
+
+                    inboundDirect.forEach(inbound => {
+                        routes.push({
+                            id: `transfer_out_${firstLeg.航班号}_${secondLeg.航班号}_${inbound.航班号}`,
+                            type: 'transfer_outbound',
+                            destination: destination,
+                            transferCity: transferCity,
+                            outbound: [firstLeg, secondLeg],
+                            inbound: inbound
+                        });
+                    });
+                });
+            });
+
+            // 返程中转
+            const outboundDirect = flights.filter(flight => 
+                flight.起飞机场 === startCity && 
+                isDateInSchedule(departureDate, flight.班期) &&
+                matchesProductFilter(flight, productFilter)
+            );
+
+            outboundDirect.forEach(outbound => {
+                const destination = outbound.降落机场;
+                
+                const inboundFirstLeg = flights.filter(flight => 
+                    flight.起飞机场 === destination && 
+                    isDateInSchedule(returnDate, flight.班期) &&
+                    flight.降落机场 !== startCity &&
+                    matchesProductFilter(flight, productFilter)
+                );
+
+                inboundFirstLeg.forEach(firstLeg => {
+                    const transferCity = firstLeg.降落机场;
+                    
+                    const inboundSecondLeg = flights.filter(flight => 
+                        flight.起飞机场 === transferCity && 
+                        flight.降落机场 === startCity && 
+                        isDateInSchedule(returnDate, flight.班期) &&
+                        matchesProductFilter(flight, productFilter)
+                    );
+
+                    inboundSecondLeg.forEach(secondLeg => {
+                        // 检查返程中转时间
+                        const firstLegTime = parseTime(firstLeg.起飞时间);
+                        const secondLegTime = parseTime(secondLeg.起飞时间);
+                        const noonTime = 12 * 60;
+                        
+                        if (firstLegTime >= noonTime || secondLegTime < noonTime) {
+                            return;
+                        }
+                        
+                        routes.push({
+                            id: `transfer_in_${outbound.航班号}_${firstLeg.航班号}_${secondLeg.航班号}`,
+                            type: 'transfer_inbound',
+                            destination: destination,
+                            transferCity: transferCity,
+                            outbound: outbound,
+                            inbound: [firstLeg, secondLeg]
+                        });
+                    });
+                });
+            });
+
+            return routes;
+        }
+
+        // Main search function
+        async function searchRoutes() {
+            const departureDate = document.getElementById('departureDate').value;
+            const returnDate = document.getElementById('returnDate').value;
+            const startCity = document.getElementById('startCity').value.trim();
+            const productFilter = document.getElementById('productFilter').value;
+
+            if (!departureDate || !returnDate || !startCity) {
+                showError('请填写完整的搜索条件');
+                return;
+            }
+
+            if (new Date(departureDate) >= new Date(returnDate)) {
+                showError('返程日期必须晚于起飞日期');
+                return;
+            }
+
+            if (!flightData) {
+                await loadFlightData();
+                if (!flightData) return;
+            }
+
+            showLoading();
+
+            try {
+                const directRoutes = findDirectRoutes(departureDate, returnDate, startCity, productFilter);
+                const transferRoutes = findTransferRoutes(departureDate, returnDate, startCity, productFilter);
+                
+                originalRoutes = [...directRoutes, ...transferRoutes];
+                currentDepartureDate = departureDate;
+                currentReturnDate = returnDate;
+                
+                displayResults(originalRoutes);
+                
+            } catch (error) {
+                console.error('搜索过程中出现错误:', error);
+                showError('搜索过程中出现错误，请重试');
+            }
+        }
+
+        // Display results
+        function displayResults(routes) {
+            const resultsSection = document.getElementById('resultsSection');
+            const resultsContainer = document.getElementById('resultsContainer');
+            const resultsCount = document.getElementById('resultsCount');
+            const resultsFilters = document.getElementById('resultsFilters');
+
+            resultsSection.style.display = 'block';
+            resultsCount.textContent = `${routes.length} 条路线`;
+
+            if (routes.length === 0) {
+                resultsFilters.style.display = 'none';
+                resultsContainer.innerHTML = `
+                    <div class="text-center py-16">
+                        <div class="text-6xl mb-4">✈️</div>
+                        <h3 class="text-xl font-semibold text-gray-600 mb-2">未找到合适的路线</h3>
+                        <p class="text-gray-500">请尝试调整搜索条件或选择其他日期</p>
+                    </div>
+                `;
+                return;
+            }
+
+            // Show filters and initialize city options
+            resultsFilters.style.display = 'block';
+            initializeCityFilter(routes);
+
+            // Render results
+            renderFilteredResults(routes);
+        }
+
+        // Initialize city filter
+        function initializeCityFilter(routes) {
+            const cityFilter = document.getElementById('cityFilter');
+            const cities = [...new Set(routes.map(route => route.destination))].sort();
+            
+            cityFilter.innerHTML = '<option value="all">全部城市</option>';
+            
+            cities.forEach(city => {
+                const option = document.createElement('option');
+                option.value = city;
+                option.textContent = city;
+                cityFilter.appendChild(option);
+            });
+        }
+
+        // Render filtered results
+        function renderFilteredResults(routes) {
+            const resultsContainer = document.getElementById('resultsContainer');
+            const resultsCount = document.getElementById('resultsCount');
+            
+            resultsCount.textContent = `${routes.length} 条路线`;
+            
+            // Group by destination
+            const groupedRoutes = groupRoutesByDestination(routes);
+            
+            resultsContainer.innerHTML = Object.keys(groupedRoutes)
+                .sort()
+                .map(destination => {
+                    const destinationRoutes = groupedRoutes[destination];
+                    return createDestinationGroup(destination, destinationRoutes);
+                }).join('');
+        }
+
+        // Group routes by destination
+        function groupRoutesByDestination(routes) {
+            const grouped = {};
+            routes.forEach(route => {
+                if (!grouped[route.destination]) {
+                    grouped[route.destination] = [];
+                }
+                grouped[route.destination].push(route);
+            });
+            return grouped;
+        }
+
+        // Create destination group
+        function createDestinationGroup(destination, routes) {
+            const directRoutes = routes.filter(r => r.type === 'direct');
+            const transferRoutes = routes.filter(r => r.type !== 'direct');
+            
+            return `
+                <div class="mb-8 border border-gray-200 rounded-xl overflow-hidden bg-white">
+                    <div class="bg-gradient-to-r from-gray-50 to-gray-100 p-6 border-b border-gray-200">
+                        <div class="flex justify-between items-center">
+                            <h3 class="text-xl font-bold text-gray-800 flex items-center">
+                                <span class="text-2xl mr-2">🏙️</span>
+                                ${destination}
+                            </h3>
+                            <div class="flex gap-2">
+                                <span class="bg-gray-500 text-white px-3 py-1 rounded-full text-sm font-semibold">${routes.length} 条路线</span>
+                                ${directRoutes.length > 0 ? '<span class="bg-green-500 text-white px-2 py-1 rounded-full text-xs font-semibold">直飞</span>' : ''}
+                                ${transferRoutes.length > 0 ? '<span class="bg-yellow-500 text-gray-900 px-2 py-1 rounded-full text-xs font-semibold">中转</span>' : ''}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="p-4 space-y-4">
+                        ${routes.map(route => createRouteCard(route)).join('')}
+                    </div>
+                </div>
+            `;
+        }
+
+        // Create route card
+        function createRouteCard(route) {
+            const typeLabel = route.type === 'direct' ? '直飞' : '中转';
+            const typeClass = route.type === 'direct' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800';
+
+            let outboundHtml = '';
+            let inboundHtml = '';
+
+            if (route.type === 'direct') {
+                outboundHtml = createFlightInfo(route.outbound);
+                inboundHtml = createFlightInfo(route.inbound);
+            } else if (route.type === 'transfer_outbound') {
+                outboundHtml = route.outbound.map(flight => createFlightInfo(flight)).join('');
+                inboundHtml = createFlightInfo(route.inbound);
+            } else if (route.type === 'transfer_inbound') {
+                outboundHtml = createFlightInfo(route.outbound);
+                inboundHtml = route.inbound.map(flight => createFlightInfo(flight)).join('');
+            }
+
+            return `
+                <div class="border border-gray-200 rounded-lg hover:border-primary hover:shadow-md transition-all duration-200">
+                    <div class="bg-gray-50 p-4 border-b border-gray-200">
+                        <div class="flex justify-between items-center">
+                            <div>
+                                <span class="${typeClass} px-3 py-1 rounded-full text-xs font-semibold uppercase mb-2 inline-block">${typeLabel}</span>
+                                <div class="font-semibold text-gray-800">${route.destination} 往返路线${route.transferCity ? '（经' + route.transferCity + '中转）' : ''}</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="p-4 space-y-6">
+                        <div>
+                            <div class="flex items-center text-primary font-semibold mb-3">
+                                <span class="text-lg mr-2">✈️</span>
+                                <span>去程 - ${currentDepartureDate}</span>
+                            </div>
+                            <div class="space-y-2">${outboundHtml}</div>
+                        </div>
+                        <div>
+                            <div class="flex items-center text-primary font-semibold mb-3">
+                                <span class="text-lg mr-2">✈️</span>
+                                <span>返程 - ${currentReturnDate}</span>
+                            </div>
+                            <div class="space-y-2">${inboundHtml}</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Create flight info
+        function createFlightInfo(flight) {
+            return `
+                <div class="bg-gray-50 p-3 rounded-lg">
+                    <div class="flex justify-between items-center mb-1">
+                        <span class="font-semibold text-gray-800">${flight.航班号}</span>
+                        <span class="text-gray-600">${flight.起飞机场} → ${flight.降落机场}</span>
+                        <span class="text-primary font-semibold">${flight.起飞时间}</span>
+                    </div>
+                    <div class="text-sm text-gray-500">适用产品: ${flight.适用产品}</div>
+                </div>
+            `;
+        }
+
+        // Apply filters
+        function applyFilters() {
+            const cityFilter = document.getElementById('cityFilter').value;
+            const routeTypeFilter = document.getElementById('routeTypeFilter').value;
+            
+            let filteredRoutes = [...originalRoutes];
+            
+            if (cityFilter !== 'all') {
+                filteredRoutes = filteredRoutes.filter(route => route.destination === cityFilter);
+            }
+            
+            if (routeTypeFilter === 'direct') {
+                filteredRoutes = filteredRoutes.filter(route => route.type === 'direct');
+            }
+            
+            renderFilteredResults(filteredRoutes);
+        }
+
+        // Show loading
+        function showLoading() {
+            const resultsSection = document.getElementById('resultsSection');
+            const resultsContainer = document.getElementById('resultsContainer');
+            const searchBtn = document.getElementById('searchBtn');
+            
+            resultsSection.style.display = 'block';
+            searchBtn.disabled = true;
+            searchBtn.innerHTML = `
+                <div class="flex items-center justify-center">
+                    <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    搜索中...
+                </div>
+            `;
+            resultsContainer.innerHTML = '<div class="text-center py-16 text-gray-500">正在搜索路线...</div>';
+            
+            setTimeout(() => {
+                searchBtn.disabled = false;
+                searchBtn.innerHTML = '搜索路线';
+            }, 1000);
+        }
+
+        // Show error
+        function showError(message) {
+            const resultsSection = document.getElementById('resultsSection');
+            const resultsContainer = document.getElementById('resultsContainer');
+            
+            resultsSection.style.display = 'block';
+            resultsContainer.innerHTML = `<div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">${message}</div>`;
+        }
+    </script>
+</body>
+</html>
