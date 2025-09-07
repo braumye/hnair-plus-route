@@ -1,0 +1,970 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>航班往返路线规划器</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+
+        .form-section {
+            padding: 40px;
+            background: #f8f9fa;
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .form-group label {
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #333;
+        }
+
+        .form-group input {
+            padding: 12px 15px;
+            border: 2px solid #e1e5e9;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s ease;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: #4facfe;
+            box-shadow: 0 0 0 3px rgba(79, 172, 254, 0.1);
+        }
+
+        .search-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 40px;
+            border-radius: 8px;
+            font-size: 18px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s ease;
+            width: 100%;
+        }
+
+        .search-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+        }
+
+        .search-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .results-section {
+            padding: 40px;
+            display: none;
+        }
+
+        .results-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #e1e5e9;
+        }
+
+        .results-title {
+            font-size: 1.8em;
+            color: #333;
+        }
+
+        .results-count {
+            background: #4facfe;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-weight: 600;
+        }
+
+        .route-card {
+            background: white;
+            border: 2px solid #e1e5e9;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            overflow: hidden;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .route-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            border-color: #4facfe;
+        }
+
+        .route-header {
+            background: #f8f9fa;
+            padding: 20px;
+            border-bottom: 1px solid #e1e5e9;
+        }
+
+        .route-type {
+            display: inline-block;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            margin-bottom: 10px;
+        }
+
+        .route-type.direct {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .route-type.transfer {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .route-summary {
+            font-size: 1.2em;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .flight-details {
+            padding: 20px;
+        }
+
+        .flight-segment {
+            margin-bottom: 25px;
+        }
+
+        .segment-title {
+            font-size: 1.1em;
+            font-weight: 600;
+            color: #4facfe;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+        }
+
+        .segment-title::before {
+            content: "✈️";
+            margin-right: 8px;
+        }
+
+        .flight-info {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+        }
+
+        .flight-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .flight-row:last-child {
+            margin-bottom: 0;
+        }
+
+        .flight-number {
+            font-weight: 600;
+            color: #333;
+        }
+
+        .flight-route {
+            color: #666;
+        }
+
+        .flight-time {
+            color: #4facfe;
+            font-weight: 600;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+
+        .loading::after {
+            content: "";
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #4facfe;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-left: 10px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .no-results {
+            text-align: center;
+            padding: 60px 20px;
+            color: #666;
+        }
+
+        .no-results h3 {
+            font-size: 1.5em;
+            margin-bottom: 10px;
+        }
+
+        .error-message {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border: 1px solid #f5c6cb;
+        }
+
+        .destination-group {
+            margin-bottom: 40px;
+            border: 1px solid #e1e5e9;
+            border-radius: 15px;
+            overflow: hidden;
+            background: white;
+        }
+
+        .destination-header {
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            padding: 25px 30px;
+            border-bottom: 2px solid #e1e5e9;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .destination-title {
+            font-size: 1.5em;
+            color: #333;
+            margin: 0;
+            font-weight: 700;
+        }
+
+        .destination-stats {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .route-count {
+            background: #6c757d;
+            color: white;
+            padding: 6px 12px;
+            border-radius: 15px;
+            font-size: 0.9em;
+            font-weight: 600;
+        }
+
+        .direct-badge {
+            background: #28a745;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 0.8em;
+            font-weight: 600;
+        }
+
+        .transfer-badge {
+            background: #ffc107;
+            color: #212529;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 0.8em;
+            font-weight: 600;
+        }
+
+        .destination-routes {
+            padding: 20px;
+        }
+
+        .destination-routes .route-card {
+            margin-bottom: 15px;
+        }
+
+        .destination-routes .route-card:last-child {
+            margin-bottom: 0;
+        }
+
+        .results-filters {
+            background: #f8f9fa;
+            padding: 20px;
+            border-bottom: 1px solid #e1e5e9;
+            display: flex;
+            gap: 30px;
+            align-items: end;
+        }
+
+        @media (max-width: 768px) {
+            .results-filters {
+                flex-direction: column;
+                gap: 15px;
+                align-items: stretch;
+            }
+        }
+
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .filter-group label {
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #333;
+            font-size: 0.9em;
+        }
+
+        .filter-group select {
+            padding: 10px 12px;
+            border: 2px solid #e1e5e9;
+            border-radius: 6px;
+            font-size: 14px;
+            background: white;
+            transition: border-color 0.3s ease;
+        }
+
+        .filter-group select:focus {
+            outline: none;
+            border-color: #4facfe;
+            box-shadow: 0 0 0 3px rgba(79, 172, 254, 0.1);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>航班往返路线规划器</h1>
+            <p>智能规划您的往返航班路线，支持直飞和一次中转</p>
+        </div>
+
+        <div class="form-section">
+            <div class="form-grid">
+                <div class="form-group">
+                    <label for="departureDate">起飞日期</label>
+                    <input type="date" id="departureDate" required>
+                </div>
+                <div class="form-group">
+                    <label for="returnDate">返程日期</label>
+                    <input type="date" id="returnDate" required>
+                </div>
+                <div class="form-group">
+                    <label for="startCity">起始城市</label>
+                    <input type="text" id="startCity" placeholder="例如：深圳" required>
+                </div>
+                <div class="form-group">
+                    <label for="productFilter">适用产品</label>
+                    <select id="productFilter" style="padding: 12px 15px; border: 2px solid #e1e5e9; border-radius: 8px; font-size: 16px; background: white;">
+                        <option value="all">全部</option>
+                        <option value="666">仅666</option>
+                    </select>
+                </div>
+            </div>
+            <button class="search-btn" onclick="searchRoutes()">搜索路线</button>
+        </div>
+
+        <div class="results-section" id="resultsSection">
+            <div class="results-header">
+                <h2 class="results-title">搜索结果</h2>
+                <span class="results-count" id="resultsCount">0 条路线</span>
+            </div>
+            <div class="results-filters" id="resultsFilters" style="display: none;">
+                <div class="filter-group">
+                    <label for="cityFilter">目的地筛选</label>
+                    <select id="cityFilter" onchange="applyResultFilters()">
+                        <option value="all">全部城市</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label for="routeTypeFilter">路线类型</label>
+                    <select id="routeTypeFilter" onchange="applyResultFilters()">
+                        <option value="all">全部</option>
+                        <option value="direct">仅直飞</option>
+                    </select>
+                </div>
+            </div>
+            <div id="resultsContainer"></div>
+        </div>
+    </div>
+
+    <script>
+        let flightData = null;
+
+        // 加载航班数据
+        async function loadFlightData() {
+            try {
+                const response = await fetch('json/latest.json');
+                flightData = await response.json();
+                console.log('航班数据加载成功，共', flightData.tables[0].rows.length, '条航班');
+            } catch (error) {
+                console.error('加载航班数据失败:', error);
+                showError('无法加载航班数据，请检查文件路径');
+            }
+        }
+
+        // 班期解码：将班期字符串转换为星期几数组
+        function decodeSchedule(schedule) {
+            if (schedule === '1234567') {
+                return [1, 2, 3, 4, 5, 6, 7]; // 每天
+            }
+            return schedule.split('').map(Number);
+        }
+
+        // 检查指定日期是否在班期内
+        function isDateInSchedule(date, schedule) {
+            const dayOfWeek = new Date(date).getDay();
+            const weekDay = dayOfWeek === 0 ? 7 : dayOfWeek; // 转换为1-7格式
+            const scheduleDays = decodeSchedule(schedule);
+            return scheduleDays.includes(weekDay);
+        }
+
+        // 解析时间字符串为分钟数（便于比较）
+        function parseTime(timeStr) {
+            const [hours, minutes] = timeStr.split(':').map(Number);
+            return hours * 60 + minutes;
+        }
+
+        // 检查航班是否符合产品筛选条件
+        function matchesProductFilter(flight, productFilter) {
+            if (productFilter === 'all') {
+                return true;
+            }
+            if (productFilter === '666') {
+                return flight.适用产品 === '666/2666';
+            }
+            return false;
+        }
+
+        // 搜索直飞路线
+        function findDirectRoutes(departureDate, returnDate, startCity, productFilter) {
+            const routes = [];
+            const flights = flightData.tables[0].rows;
+
+            // 查找去程航班
+            const outboundFlights = flights.filter(flight => 
+                flight.起飞机场 === startCity && 
+                isDateInSchedule(departureDate, flight.班期) &&
+                matchesProductFilter(flight, productFilter)
+            );
+
+            // 查找返程航班
+            const inboundFlights = flights.filter(flight => 
+                flight.降落机场 === startCity && 
+                isDateInSchedule(returnDate, flight.班期) &&
+                matchesProductFilter(flight, productFilter)
+            );
+
+            // 匹配往返路线
+            outboundFlights.forEach(outbound => {
+                inboundFlights.forEach(inbound => {
+                    if (outbound.降落机场 === inbound.起飞机场) {
+                        routes.push({
+                            type: 'direct',
+                            destination: outbound.降落机场,
+                            outbound: outbound,
+                            inbound: inbound
+                        });
+                    }
+                });
+            });
+
+            return routes;
+        }
+
+        // 搜索中转路线
+        function findTransferRoutes(departureDate, returnDate, startCity, productFilter) {
+            const routes = [];
+            const flights = flightData.tables[0].rows;
+
+            // 去程中转路线：起始地 -> 中转城市 -> 目的地，返程直飞：目的地 -> 起始地
+            const outboundFirstLeg = flights.filter(flight => 
+                flight.起飞机场 === startCity && 
+                isDateInSchedule(departureDate, flight.班期) &&
+                matchesProductFilter(flight, productFilter)
+            );
+
+            outboundFirstLeg.forEach(firstLeg => {
+                const transferCity = firstLeg.降落机场;
+                
+                // 查找从中转城市出发的航班
+                const outboundSecondLeg = flights.filter(flight => 
+                    flight.起飞机场 === transferCity && 
+                    isDateInSchedule(departureDate, flight.班期) &&
+                    flight.降落机场 !== startCity && // 避免回到起始地
+                    matchesProductFilter(flight, productFilter)
+                );
+
+                outboundSecondLeg.forEach(secondLeg => {
+                    const destination = secondLeg.降落机场;
+                    
+                    // 检查中转时间是否合理：第一程必须12点前，第二程必须12点后
+                    const firstLegTime = parseTime(firstLeg.起飞时间);
+                    const secondLegTime = parseTime(secondLeg.起飞时间);
+                    const noonTime = 12 * 60; // 12:00 = 720分钟
+                    
+                    // 第一程必须在12点前，第二程必须在12点后
+                    if (firstLegTime >= noonTime || secondLegTime < noonTime) {
+                        return;
+                    }
+                    
+                    // 查找返程直飞航班
+                    const inboundDirect = flights.filter(flight => 
+                        flight.起飞机场 === destination && 
+                        flight.降落机场 === startCity && 
+                        isDateInSchedule(returnDate, flight.班期) &&
+                        matchesProductFilter(flight, productFilter)
+                    );
+
+                    inboundDirect.forEach(inbound => {
+                        routes.push({
+                            type: 'transfer_outbound',
+                            destination: destination,
+                            transferCity: transferCity,
+                            outbound: [firstLeg, secondLeg],
+                            inbound: inbound
+                        });
+                    });
+                });
+            });
+
+            // 返程中转路线：去程直飞：起始地 -> 目的地，返程：目的地 -> 中转城市 -> 起始地
+            const outboundDirect = flights.filter(flight => 
+                flight.起飞机场 === startCity && 
+                isDateInSchedule(departureDate, flight.班期) &&
+                matchesProductFilter(flight, productFilter)
+            );
+
+            outboundDirect.forEach(outbound => {
+                const destination = outbound.降落机场;
+                
+                // 查找从目的地出发的航班（作为返程第一段）
+                const inboundFirstLeg = flights.filter(flight => 
+                    flight.起飞机场 === destination && 
+                    isDateInSchedule(returnDate, flight.班期) &&
+                    flight.降落机场 !== startCity && // 不是直飞回起始地
+                    matchesProductFilter(flight, productFilter)
+                );
+
+                inboundFirstLeg.forEach(firstLeg => {
+                    const transferCity = firstLeg.降落机场;
+                    
+                    // 查找从中转城市回到起始地的航班
+                    const inboundSecondLeg = flights.filter(flight => 
+                        flight.起飞机场 === transferCity && 
+                        flight.降落机场 === startCity && 
+                        isDateInSchedule(returnDate, flight.班期) &&
+                        matchesProductFilter(flight, productFilter)
+                    );
+
+                    inboundSecondLeg.forEach(secondLeg => {
+                        // 检查返程中转时间是否合理：第一程必须12点前，第二程必须12点后
+                        const firstLegTime = parseTime(firstLeg.起飞时间);
+                        const secondLegTime = parseTime(secondLeg.起飞时间);
+                        const noonTime = 12 * 60; // 12:00 = 720分钟
+                        
+                        // 第一程必须在12点前，第二程必须在12点后
+                        if (firstLegTime >= noonTime || secondLegTime < noonTime) {
+                            return;
+                        }
+                        
+                        routes.push({
+                            type: 'transfer_inbound',
+                            destination: destination,
+                            transferCity: transferCity,
+                            outbound: outbound,
+                            inbound: [firstLeg, secondLeg]
+                        });
+                    });
+                });
+            });
+
+            return routes;
+        }
+
+        // 搜索路线主函数
+        async function searchRoutes() {
+            const departureDate = document.getElementById('departureDate').value;
+            const returnDate = document.getElementById('returnDate').value;
+            const startCity = document.getElementById('startCity').value.trim();
+            const productFilter = document.getElementById('productFilter').value;
+
+            if (!departureDate || !returnDate || !startCity) {
+                showError('请填写完整的搜索条件');
+                return;
+            }
+
+            if (new Date(departureDate) >= new Date(returnDate)) {
+                showError('返程日期必须晚于起飞日期');
+                return;
+            }
+
+            if (!flightData) {
+                await loadFlightData();
+                if (!flightData) return;
+            }
+
+            showLoading();
+
+            try {
+                // 搜索直飞路线
+                const directRoutes = findDirectRoutes(departureDate, returnDate, startCity, productFilter);
+                
+                // 搜索中转路线
+                const transferRoutes = findTransferRoutes(departureDate, returnDate, startCity, productFilter);
+                
+                // 合并结果并排序（直飞优先）
+                const allRoutes = [...directRoutes, ...transferRoutes];
+                
+                displayResults(allRoutes, departureDate, returnDate, startCity, productFilter);
+            } catch (error) {
+                console.error('搜索过程中出现错误:', error);
+                showError('搜索过程中出现错误，请重试');
+            }
+        }
+
+        // 全局变量存储原始搜索结果
+        let originalRoutes = [];
+        let currentDepartureDate = '';
+        let currentReturnDate = '';
+
+        // 显示搜索结果
+        function displayResults(routes, departureDate, returnDate, startCity) {
+            const resultsSection = document.getElementById('resultsSection');
+            const resultsContainer = document.getElementById('resultsContainer');
+            const resultsCount = document.getElementById('resultsCount');
+            const resultsFilters = document.getElementById('resultsFilters');
+
+            // 保存原始数据
+            originalRoutes = routes;
+            currentDepartureDate = departureDate;
+            currentReturnDate = returnDate;
+
+            resultsSection.style.display = 'block';
+            resultsCount.textContent = `${routes.length} 条路线`;
+
+            if (routes.length === 0) {
+                resultsFilters.style.display = 'none';
+                resultsContainer.innerHTML = `
+                    <div class="no-results">
+                        <h3>未找到合适的路线</h3>
+                        <p>请尝试调整搜索条件或选择其他日期</p>
+                    </div>
+                `;
+                return;
+            }
+
+            // 显示筛选器并初始化城市选项
+            resultsFilters.style.display = 'block';
+            initializeCityFilter(routes);
+
+            // 按目的地分组并显示
+            renderFilteredResults(routes);
+        }
+
+        // 初始化城市筛选器
+        function initializeCityFilter(routes) {
+            const cityFilter = document.getElementById('cityFilter');
+            const cities = [...new Set(routes.map(route => route.destination))].sort();
+            
+            // 清空现有选项（保留"全部城市"）
+            cityFilter.innerHTML = '<option value="all">全部城市</option>';
+            
+            // 添加城市选项
+            cities.forEach(city => {
+                const option = document.createElement('option');
+                option.value = city;
+                option.textContent = city;
+                cityFilter.appendChild(option);
+            });
+        }
+
+        // 渲染筛选后的结果
+        function renderFilteredResults(routes) {
+            const resultsContainer = document.getElementById('resultsContainer');
+            const resultsCount = document.getElementById('resultsCount');
+            
+            resultsCount.textContent = `${routes.length} 条路线`;
+            
+            // 按目的地分组
+            const groupedRoutes = groupRoutesByDestination(routes);
+            
+            resultsContainer.innerHTML = Object.keys(groupedRoutes)
+                .sort() // 按目的地名称排序
+                .map(destination => {
+                    const destinationRoutes = groupedRoutes[destination];
+                    return createDestinationGroup(destination, destinationRoutes, currentDepartureDate, currentReturnDate);
+                }).join('');
+        }
+
+        // 应用结果筛选
+        function applyResultFilters() {
+            const cityFilter = document.getElementById('cityFilter').value;
+            const routeTypeFilter = document.getElementById('routeTypeFilter').value;
+            
+            let filteredRoutes = [...originalRoutes];
+            
+            // 城市筛选
+            if (cityFilter !== 'all') {
+                filteredRoutes = filteredRoutes.filter(route => route.destination === cityFilter);
+            }
+            
+            // 路线类型筛选
+            if (routeTypeFilter === 'direct') {
+                filteredRoutes = filteredRoutes.filter(route => route.type === 'direct');
+            }
+            
+            renderFilteredResults(filteredRoutes);
+        }
+
+        // 按目的地分组路线
+        function groupRoutesByDestination(routes) {
+            const grouped = {};
+            routes.forEach(route => {
+                const destination = route.destination;
+                if (!grouped[destination]) {
+                    grouped[destination] = [];
+                }
+                grouped[destination].push(route);
+            });
+            return grouped;
+        }
+
+        // 创建目的地分组
+        function createDestinationGroup(destination, routes, departureDate, returnDate) {
+            const directRoutes = routes.filter(r => r.type === 'direct');
+            const transferRoutes = routes.filter(r => r.type !== 'direct');
+            
+            return `
+                <div class="destination-group">
+                    <div class="destination-header">
+                        <h3 class="destination-title">🏙️ ${destination}</h3>
+                        <div class="destination-stats">
+                            <span class="route-count">${routes.length} 条路线</span>
+                            ${directRoutes.length > 0 ? `<span class="direct-badge">直飞</span>` : ''}
+                            ${transferRoutes.length > 0 ? `<span class="transfer-badge">中转</span>` : ''}
+                        </div>
+                    </div>
+                    <div class="destination-routes">
+                        ${routes.map(route => createRouteCard(route, departureDate, returnDate)).join('')}
+                    </div>
+                </div>
+            `;
+        }
+
+        // 创建路线卡片
+        function createRouteCard(route, departureDate, returnDate) {
+            const typeLabel = route.type === 'direct' ? '直飞' : '中转';
+            const typeClass = route.type === 'direct' ? 'direct' : 'transfer';
+
+            let outboundHtml = '';
+            let inboundHtml = '';
+
+            if (route.type === 'direct') {
+                outboundHtml = `
+                    <div class="flight-info">
+                        <div class="flight-row">
+                            <span class="flight-number">${route.outbound.航班号}</span>
+                            <span class="flight-route">${route.outbound.起飞机场} → ${route.outbound.降落机场}</span>
+                            <span class="flight-time">${route.outbound.起飞时间}</span>
+                        </div>
+                        <div class="flight-row">
+                            <span style="color: #888; font-size: 0.9em;">适用产品: ${route.outbound.适用产品}</span>
+                        </div>
+                    </div>
+                `;
+                inboundHtml = `
+                    <div class="flight-info">
+                        <div class="flight-row">
+                            <span class="flight-number">${route.inbound.航班号}</span>
+                            <span class="flight-route">${route.inbound.起飞机场} → ${route.inbound.降落机场}</span>
+                            <span class="flight-time">${route.inbound.起飞时间}</span>
+                        </div>
+                        <div class="flight-row">
+                            <span style="color: #888; font-size: 0.9em;">适用产品: ${route.inbound.适用产品}</span>
+                        </div>
+                    </div>
+                `;
+            } else if (route.type === 'transfer_outbound') {
+                outboundHtml = `
+                    <div class="flight-info">
+                        <div class="flight-row">
+                            <span class="flight-number">${route.outbound[0].航班号}</span>
+                            <span class="flight-route">${route.outbound[0].起飞机场} → ${route.outbound[0].降落机场}</span>
+                            <span class="flight-time">${route.outbound[0].起飞时间}</span>
+                        </div>
+                        <div class="flight-row">
+                            <span style="color: #888; font-size: 0.9em;">适用产品: ${route.outbound[0].适用产品}</span>
+                        </div>
+                    </div>
+                    <div class="flight-info">
+                        <div class="flight-row">
+                            <span class="flight-number">${route.outbound[1].航班号}</span>
+                            <span class="flight-route">${route.outbound[1].起飞机场} → ${route.outbound[1].降落机场}</span>
+                            <span class="flight-time">${route.outbound[1].起飞时间}</span>
+                        </div>
+                        <div class="flight-row">
+                            <span style="color: #888; font-size: 0.9em;">适用产品: ${route.outbound[1].适用产品}</span>
+                        </div>
+                    </div>
+                `;
+                inboundHtml = `
+                    <div class="flight-info">
+                        <div class="flight-row">
+                            <span class="flight-number">${route.inbound.航班号}</span>
+                            <span class="flight-route">${route.inbound.起飞机场} → ${route.inbound.降落机场}</span>
+                            <span class="flight-time">${route.inbound.起飞时间}</span>
+                        </div>
+                    </div>
+                `;
+            } else if (route.type === 'transfer_inbound') {
+                outboundHtml = `
+                    <div class="flight-info">
+                        <div class="flight-row">
+                            <span class="flight-number">${route.outbound.航班号}</span>
+                            <span class="flight-route">${route.outbound.起飞机场} → ${route.outbound.降落机场}</span>
+                            <span class="flight-time">${route.outbound.起飞时间}</span>
+                        </div>
+                    </div>
+                `;
+                inboundHtml = `
+                    <div class="flight-info">
+                        <div class="flight-row">
+                            <span class="flight-number">${route.inbound[0].航班号}</span>
+                            <span class="flight-route">${route.inbound[0].起飞机场} → ${route.inbound[0].降落机场}</span>
+                            <span class="flight-time">${route.inbound[0].起飞时间}</span>
+                        </div>
+                        <div class="flight-row">
+                            <span style="color: #888; font-size: 0.9em;">适用产品: ${route.inbound[0].适用产品}</span>
+                        </div>
+                    </div>
+                    <div class="flight-info">
+                        <div class="flight-row">
+                            <span class="flight-number">${route.inbound[1].航班号}</span>
+                            <span class="flight-route">${route.inbound[1].起飞机场} → ${route.inbound[1].降落机场}</span>
+                            <span class="flight-time">${route.inbound[1].起飞时间}</span>
+                        </div>
+                        <div class="flight-row">
+                            <span style="color: #888; font-size: 0.9em;">适用产品: ${route.inbound[1].适用产品}</span>
+                        </div>
+                    </div>
+                `;
+            }
+
+            return `
+                <div class="route-card">
+                    <div class="route-header">
+                        <span class="route-type ${typeClass}">${typeLabel}</span>
+                        <div class="route-summary">
+                            ${route.destination} 往返路线
+                            ${route.transferCity ? `（经${route.transferCity}中转）` : ''}
+                        </div>
+                    </div>
+                    <div class="flight-details">
+                        <div class="flight-segment">
+                            <div class="segment-title">去程 - ${departureDate}</div>
+                            ${outboundHtml}
+                        </div>
+                        <div class="flight-segment">
+                            <div class="segment-title">返程 - ${returnDate}</div>
+                            ${inboundHtml}
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // 显示加载状态
+        function showLoading() {
+            const resultsSection = document.getElementById('resultsSection');
+            const resultsContainer = document.getElementById('resultsContainer');
+            
+            resultsSection.style.display = 'block';
+            resultsContainer.innerHTML = '<div class="loading">正在搜索路线...</div>';
+        }
+
+        // 显示错误信息
+        function showError(message) {
+            const resultsSection = document.getElementById('resultsSection');
+            const resultsContainer = document.getElementById('resultsContainer');
+            
+            resultsSection.style.display = 'block';
+            resultsContainer.innerHTML = `<div class="error-message">${message}</div>`;
+        }
+
+        // 页面加载时初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            // 设置默认日期
+            const today = new Date();
+            const tomorrow = new Date(today);
+            tomorrow.setDate(tomorrow.getDate() + 1);
+            const nextWeek = new Date(today);
+            nextWeek.setDate(nextWeek.getDate() + 7);
+
+            document.getElementById('departureDate').value = tomorrow.toISOString().split('T')[0];
+            document.getElementById('returnDate').value = nextWeek.toISOString().split('T')[0];
+            
+            // 预加载航班数据
+            loadFlightData();
+        });
+    </script>
+</body>
+</html>
