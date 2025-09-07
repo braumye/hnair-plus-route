@@ -1,0 +1,5 @@
+Webview errors at url: http://localhost:8080/route-planner-v2.html
+error: 
+ [Window Error]: [unknown-error]: Script error.
+Uncaught TypeError: Cannot read properties of undefined (reading 'after')
+Uncaught TypeError: Cannot read properties of null (reading 'getBoundingClientRect')
