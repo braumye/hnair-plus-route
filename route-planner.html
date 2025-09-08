@@ -239,7 +239,7 @@
                                                 <span x-text="`去程 - ${departureDate}`"></span>
                                             </div>
                                             <div class="space-y-2">
-                                                <template x-if="route.type === 'direct'">
+                                                <template x-if="route.type === 'direct' || route.type === 'transfer_inbound'">
                                                     <div class="bg-gray-50 p-3 rounded-lg">
                                                         <div class="flex justify-between items-center mb-1">
                                                             <span class="font-semibold text-gray-800" x-text="route.outbound['航班号']"></span>
@@ -249,9 +249,9 @@
                                                         <div class="text-sm text-gray-500" x-text="`适用产品: ${route.outbound['适用产品']}`"></div>
                                                     </div>
                                                 </template>
-                                                <template x-if="route.type !== 'direct'">
+                                                <template x-if="route.type === 'transfer_outbound'">
                                                     <div class="space-y-2">
-                                                        <template x-for="(flight, index) in route.outbound" :key="index">
+                                                        <template x-for="(flight, index) in route.outbound" :key="`${route.id}-outbound-${index}-${flight['航班号']}`">
                                                             <div class="bg-gray-50 p-3 rounded-lg">
                                                                 <div class="flex justify-between items-center mb-1">
                                                                     <span class="font-semibold text-gray-800" x-text="flight['航班号']"></span>
@@ -285,7 +285,7 @@
                                                 </template>
                                                 <template x-if="route.type === 'transfer_inbound'">
                                                     <div class="space-y-2">
-                                                        <template x-for="(flight, index) in route.inbound" :key="index">
+                                                        <template x-for="(flight, index) in route.inbound" :key="`${route.id}-inbound-${index}-${flight['航班号']}`">
                                                             <div class="bg-gray-50 p-3 rounded-lg">
                                                                 <div class="flex justify-between items-center mb-1">
                                                                     <span class="font-semibold text-gray-800" x-text="flight['航班号']"></span>
@@ -384,7 +384,7 @@
                     return true;
                 }
                 if (productFilter === '666') {
-                    return flight.适用产品 === '666/2666';
+                    return flight['适用产品'] === '666/2666';
                 }
                 return false;
             },
@@ -395,24 +395,24 @@
                 const flights = this.flightData.tables[0].rows;
 
                 const outboundFlights = flights.filter(flight => 
-                    flight.起飞机场 === startCity && 
-                    this.isDateInSchedule(departureDate, flight.班期) &&
+                    flight['起飞机场'] === startCity && 
+                    this.isDateInSchedule(departureDate, flight['班期']) &&
                     this.matchesProductFilter(flight, productFilter)
                 );
 
                 const inboundFlights = flights.filter(flight => 
-                    flight.降落机场 === startCity && 
-                    this.isDateInSchedule(returnDate, flight.班期) &&
+                    flight['降落机场'] === startCity && 
+                    this.isDateInSchedule(returnDate, flight['班期']) &&
                     this.matchesProductFilter(flight, productFilter)
                 );
 
                 outboundFlights.forEach(outbound => {
                     inboundFlights.forEach(inbound => {
-                        if (outbound.降落机场 === inbound.起飞机场) {
+                        if (outbound['降落机场'] === inbound['起飞机场']) {
                             routes.push({
-                                id: `direct_${outbound.航班号}_${inbound.航班号}`,
+                                id: `direct_${outbound['航班号']}_${inbound['航班号']}`,
                                 type: 'direct',
-                                destination: outbound.降落机场,
+                                destination: outbound['降落机场'],
                                 outbound: outbound,
                                 inbound: inbound
                             });
@@ -430,27 +430,27 @@
 
                 // 去程中转
                 const outboundFirstLeg = flights.filter(flight => 
-                    flight.起飞机场 === startCity && 
-                    this.isDateInSchedule(departureDate, flight.班期) &&
+                    flight['起飞机场'] === startCity && 
+                    this.isDateInSchedule(departureDate, flight['班期']) &&
                     this.matchesProductFilter(flight, productFilter)
                 );
 
                 outboundFirstLeg.forEach(firstLeg => {
-                    const transferCity = firstLeg.降落机场;
+                    const transferCity = firstLeg['降落机场'];
                     
                     const outboundSecondLeg = flights.filter(flight => 
-                        flight.起飞机场 === transferCity && 
-                        this.isDateInSchedule(departureDate, flight.班期) &&
-                        flight.降落机场 !== startCity &&
+                        flight['起飞机场'] === transferCity && 
+                        this.isDateInSchedule(departureDate, flight['班期']) &&
+                        flight['降落机场'] !== startCity &&
                         this.matchesProductFilter(flight, productFilter)
                     );
 
                     outboundSecondLeg.forEach(secondLeg => {
-                        const destination = secondLeg.降落机场;
+                        const destination = secondLeg['降落机场'];
                         
                         // 检查中转时间：第一程12点前，第二程12点后
-                        const firstLegTime = this.parseTime(firstLeg.起飞时间);
-                        const secondLegTime = this.parseTime(secondLeg.起飞时间);
+                        const firstLegTime = this.parseTime(firstLeg['起飞时间']);
+                        const secondLegTime = this.parseTime(secondLeg['起飞时间']);
                         const noonTime = 12 * 60;
                         
                         if (firstLegTime >= noonTime || secondLegTime < noonTime) {
@@ -458,15 +458,15 @@
                         }
                         
                         const inboundDirect = flights.filter(flight => 
-                            flight.起飞机场 === destination && 
-                            flight.降落机场 === startCity && 
-                            this.isDateInSchedule(returnDate, flight.班期) &&
+                            flight['起飞机场'] === destination && 
+                            flight['降落机场'] === startCity && 
+                            this.isDateInSchedule(returnDate, flight['班期']) &&
                             this.matchesProductFilter(flight, productFilter)
                         );
 
                         inboundDirect.forEach(inbound => {
                             routes.push({
-                                id: `transfer_out_${firstLeg.航班号}_${secondLeg.航班号}_${inbound.航班号}`,
+                                id: `transfer_out_${firstLeg['航班号']}_${secondLeg['航班号']}_${inbound['航班号']}`,
                                 type: 'transfer_outbound',
                                 destination: destination,
                                 transferCity: transferCity,
@@ -479,35 +479,35 @@
 
                 // 返程中转
                 const outboundDirect = flights.filter(flight => 
-                    flight.起飞机场 === startCity && 
-                    this.isDateInSchedule(departureDate, flight.班期) &&
+                    flight['起飞机场'] === startCity && 
+                    this.isDateInSchedule(departureDate, flight['班期']) &&
                     this.matchesProductFilter(flight, productFilter)
                 );
 
                 outboundDirect.forEach(outbound => {
-                    const destination = outbound.降落机场;
+                    const destination = outbound['降落机场'];
                     
                     const inboundFirstLeg = flights.filter(flight => 
-                        flight.起飞机场 === destination && 
-                        this.isDateInSchedule(returnDate, flight.班期) &&
-                        flight.降落机场 !== startCity &&
+                        flight['起飞机场'] === destination && 
+                        this.isDateInSchedule(returnDate, flight['班期']) &&
+                        flight['降落机场'] !== startCity &&
                         this.matchesProductFilter(flight, productFilter)
                     );
 
                     inboundFirstLeg.forEach(firstLeg => {
-                        const transferCity = firstLeg.降落机场;
+                        const transferCity = firstLeg['降落机场'];
                         
                         const inboundSecondLeg = flights.filter(flight => 
-                            flight.起飞机场 === transferCity && 
-                            flight.降落机场 === startCity && 
-                            this.isDateInSchedule(returnDate, flight.班期) &&
+                            flight['起飞机场'] === transferCity && 
+                            flight['降落机场'] === startCity && 
+                            this.isDateInSchedule(returnDate, flight['班期']) &&
                             this.matchesProductFilter(flight, productFilter)
                         );
 
                         inboundSecondLeg.forEach(secondLeg => {
                             // 检查返程中转时间
-                            const firstLegTime = this.parseTime(firstLeg.起飞时间);
-                            const secondLegTime = this.parseTime(secondLeg.起飞时间);
+                            const firstLegTime = this.parseTime(firstLeg['起飞时间']);
+                            const secondLegTime = this.parseTime(secondLeg['起飞时间']);
                             const noonTime = 12 * 60;
                             
                             if (firstLegTime >= noonTime || secondLegTime < noonTime) {
@@ -515,7 +515,7 @@
                             }
                             
                             routes.push({
-                                id: `transfer_in_${outbound.航班号}_${firstLeg.航班号}_${secondLeg.航班号}`,
+                                id: `transfer_in_${outbound['航班号']}_${firstLeg['航班号']}_${secondLeg['航班号']}`,
                                 type: 'transfer_inbound',
                                 destination: destination,
                                 transferCity: transferCity,
@@ -541,12 +541,12 @@
                 
                 // 筛选去程航班
                 const outboundFlights = flights.filter(flight => {
-                    if (flight.起飞机场 !== startCity) return false;
-                    if (!this.isDateInSchedule(departureDate, flight.班期)) return false;
+                    if (flight['起飞机场'] !== startCity) return false;
+                    if (!this.isDateInSchedule(departureDate, flight['班期'])) return false;
                     if (!this.matchesProductFilter(flight, productFilter)) return false;
                     
                     // 时间筛选
-                    const flightTime = this.parseTime(flight.起飞时间);
+                    const flightTime = this.parseTime(flight['起飞时间']);
                     if (isEveningDeparture) {
                         // 周五晚上：18:00后
                         return flightTime >= 18 * 60;
@@ -559,25 +559,25 @@
 
                 // 筛选返程航班（周日晚上：18:00后）
                 const inboundFlights = flights.filter(flight => {
-                    if (flight.降落机场 !== startCity) return false;
-                    if (!this.isDateInSchedule(returnDate, flight.班期)) return false;
+                    if (flight['降落机场'] !== startCity) return false;
+                    if (!this.isDateInSchedule(returnDate, flight['班期'])) return false;
                     if (!this.matchesProductFilter(flight, productFilter)) return false;
                     
                     // 周日晚上时间筛选
-                    const flightTime = this.parseTime(flight.起飞时间);
+                    const flightTime = this.parseTime(flight['起飞时间']);
                     return flightTime >= 18 * 60; // 18:00后
                 });
 
                 // 匹配往返路线
                 outboundFlights.forEach(outbound => {
-                    const destination = outbound.降落机场;
+                    const destination = outbound['降落机场'];
                     const matchingInbound = inboundFlights.filter(inbound => 
-                        inbound.起飞机场 === destination
+                        inbound['起飞机场'] === destination
                     );
 
                     matchingInbound.forEach(inbound => {
                         routes.push({
-                            id: `weekend_direct_${outbound.航班号}_${inbound.航班号}`,
+                            id: `weekend_direct_${outbound['航班号']}_${inbound['航班号']}`,
                             type: 'direct',
                             destination: destination,
                             outbound: outbound,
@@ -608,6 +608,7 @@
                         }
                         grouped[route.destination].push(route);
                     });
+                    console.log('groupedRoutes', grouped);
                     return grouped;
                 },
 
