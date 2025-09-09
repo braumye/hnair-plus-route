@@ -55,14 +55,43 @@ jobs:
         git config --local user.name "GitHub Action"
     
     - name: Commit and push changes
+      id: commit_changes
       run: |
         git add .
         if git diff --staged --quiet; then
           echo "No changes to commit"
+          echo "changes_detected=false" >> $GITHUB_OUTPUT
         else
           git commit -m "Update webpage content - $(date +'%Y-%m-%d %H:%M:%S')"
           git push
+          echo "changes_detected=true" >> $GITHUB_OUTPUT
         fi
+    
+    - name: Send email notification
+      if: steps.commit_changes.outputs.changes_detected == 'true'
+      uses: dawidd6/action-send-mail@v3
+      with:
+        server_address: smtp.gmail.com
+        server_port: 587
+        username: ${{ secrets.EMAIL_USERNAME }}
+        password: ${{ secrets.EMAIL_PASSWORD }}
+        subject: "网页内容更新通知 - ${{ github.repository }}"
+        to: ${{ secrets.EMAIL_TO }}
+        from: ${{ secrets.EMAIL_FROM }}
+        body: |
+          您好！
+          
+          检测到网页内容发生了更新：
+          
+          - 仓库：${{ github.repository }}
+          - 分支：${{ github.ref_name }}
+          - 提交时间：${{ github.event.head_commit.timestamp }}
+          - 提交ID：${{ github.sha }}
+          
+          您可以访问以下链接查看更新：
+          https://braumye.github.io/hnair-plus-route/index.html
+          
+          此邮件由 GitHub Actions 自动发送。
     
     - name: Deploy to GitHub Pages
       if: github.ref == 'refs/heads/master'
