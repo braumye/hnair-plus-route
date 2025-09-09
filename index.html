@@ -230,6 +230,9 @@
 
                 async init() {
                     try {
+                        // 加载更新时间信息
+                        await this.loadLastUpdated();
+                        
                         const response = await fetch('./json/latest.json');
                         if (!response.ok) {
                             throw new Error(`HTTP ${response.status}: ${response.statusText}`);
@@ -244,6 +247,19 @@
                     }
                 },
 
+                async loadLastUpdated() {
+                    try {
+                        const response = await fetch('./last_content.txt');
+                        if (response.ok) {
+                            this.lastUpdated = await response.text();
+                        } else {
+                            this.lastUpdated = '更新时间未知';
+                        }
+                    } catch (err) {
+                        this.lastUpdated = '更新时间未知';
+                    }
+                },
+
                 processData() {
                     if (!this.rawData?.tables?.length) {
                         this.error = '数据格式错误或无表格数据';
@@ -255,12 +271,6 @@
                     this.tableHeaders = firstTable.headers || [];
                     this.routes = firstTable.rows || [];
                     this.filteredRoutes = [...this.routes];
-                    
-                    // 格式化更新时间
-                    if (this.rawData.extractedAt) {
-                        const date = new Date(this.rawData.extractedAt);
-                        this.lastUpdated = `最后更新: ${date.toLocaleString('zh-CN')}`;
-                    }
                 },
 
                 filterRoutes() {
