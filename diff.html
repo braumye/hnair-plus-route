@@ -371,35 +371,12 @@
 
                 async loadFilesFromGitHubAPI() {
                     try {
-                        // 尝试多种方式获取仓库信息
-                        let owner, repo;
+                        // 直接使用正确的仓库信息，不依赖URL解析
+                        const owner = 'braumye';
+                        const repo = 'hnair-plus-route';
                         
-                        // 方法1: 从URL路径解析
-                        const pathParts = window.location.pathname.split('/').filter(p => p);
-                        if (pathParts.length >= 2) {
-                            owner = pathParts[0];
-                            repo = pathParts[1];
-                        }
-                        
-                        // 方法2: 如果是GitHub Pages，尝试从hostname解析
-                        if (!owner || !repo) {
-                            const hostname = window.location.hostname;
-                            if (hostname.includes('github.io')) {
-                                const parts = hostname.split('.');
-                                if (parts.length >= 3) {
-                                    owner = parts[0];
-                                    repo = pathParts[0] || parts[0]; // 可能是用户名.github.io/repo-name
-                                }
-                            }
-                        }
-                        
-                        // 方法3: 硬编码备用方案（根据你的实际仓库信息）
-                        if (!owner || !repo) {
-                            owner = 'braumye'; // 替换为你的GitHub用户名
-                            repo = 'hnair-plus-route'; // 替换为你的仓库名
-                        }
-                        
-                        console.log(`尝试访问: ${owner}/${repo}`);
+                        console.log(`尝试访问仓库: ${owner}/${repo}`);
+                        console.log(`当前URL: ${window.location.href}`);
                         
                         // 尝试不同的API端点
                         const apiUrls = [
@@ -422,10 +399,13 @@
                                 return;
                             } else {
                                 console.log(`API失败 (${response.status}): ${apiUrl}`);
+                                if (response.status === 404) {
+                                    console.log('可能的原因: 1) 仓库不存在 2) json文件夹不存在 3) 仓库是私有的');
+                                }
                             }
                         }
                         
-                        throw new Error(`所有API端点都失败了。仓库: ${owner}/${repo}`);
+                        throw new Error(`所有API端点都失败了。请检查仓库 ${owner}/${repo} 是否存在且包含json文件夹`);
                         
                     } catch (error) {
                         console.error('GitHub API错误:', error);
