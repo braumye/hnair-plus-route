@@ -370,25 +370,67 @@
                 },
 
                 async loadFilesFromGitHubAPI() {
-                    // 从当前URL推断GitHub仓库信息
-                    const pathParts = window.location.pathname.split('/');
-                    const owner = pathParts[1]; // 用户名
-                    const repo = pathParts[2];  // 仓库名
-                    
-                    if (owner && repo) {
-                        const apiUrl = `https://api.github.com/repos/${owner}/${repo}/contents/json`;
-                        const response = await fetch(apiUrl);
+                    try {
+                        // 尝试多种方式获取仓库信息
+                        let owner, repo;
                         
-                        if (response.ok) {
-                            const files = await response.json();
-                            this.availableFiles = files
-                                .filter(file => file.name.endsWith('.json') && file.name !== 'latest.json')
-                                .map(file => file.name)
-                                .sort();
-                            return;
+                        // 方法1: 从URL路径解析
+                        const pathParts = window.location.pathname.split('/').filter(p => p);
+                        if (pathParts.length >= 2) {
+                            owner = pathParts[0];
+                            repo = pathParts[1];
                         }
+                        
+                        // 方法2: 如果是GitHub Pages，尝试从hostname解析
+                        if (!owner || !repo) {
+                            const hostname = window.location.hostname;
+                            if (hostname.includes('github.io')) {
+                                const parts = hostname.split('.');
+                                if (parts.length >= 3) {
+                                    owner = parts[0];
+                                    repo = pathParts[0] || parts[0]; // 可能是用户名.github.io/repo-name
+                                }
+                            }
+                        }
+                        
+                        // 方法3: 硬编码备用方案（根据你的实际仓库信息）
+                        if (!owner || !repo) {
+                            owner = 'braumye'; // 替换为你的GitHub用户名
+                            repo = 'hnair-plus-route'; // 替换为你的仓库名
+                        }
+                        
+                        console.log(`尝试访问: ${owner}/${repo}`);
+                        
+                        // 尝试不同的API端点
+                        const apiUrls = [
+                            `https://api.github.com/repos/${owner}/${repo}/contents/json`,
+                            `https://api.github.com/repos/${owner}/${repo}/contents/json?ref=main`,
+                            `https://api.github.com/repos/${owner}/${repo}/contents/json?ref=master`
+                        ];
+                        
+                        for (const apiUrl of apiUrls) {
+                            console.log(`尝试API: ${apiUrl}`);
+                            const response = await fetch(apiUrl);
+                            
+                            if (response.ok) {
+                                const files = await response.json();
+                                this.availableFiles = files
+                                    .filter(file => file.name.endsWith('.json') && file.name !== 'latest.json')
+                                    .map(file => file.name)
+                                    .sort();
+                                console.log('成功获取文件列表:', this.availableFiles);
+                                return;
+                            } else {
+                                console.log(`API失败 (${response.status}): ${apiUrl}`);
+                            }
+                        }
+                        
+                        throw new Error(`所有API端点都失败了。仓库: ${owner}/${repo}`);
+                        
+                    } catch (error) {
+                        console.error('GitHub API错误:', error);
+                        throw new Error(`GitHub API 获取失败: ${error.message}`);
                     }
-                    throw new Error('GitHub API 获取失败');
                 },
 
                 async loadFilesFromDirectory() {
