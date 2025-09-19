@@ -290,13 +290,13 @@
                         filtered = filtered.filter(route => {
                             if (this.searchScope === 'departure') {
                                 // 搜索起飞机场相关字段
-                                const departureFields = ['起飞机场', '出发城市', '起飞城市'];
+                                const departureFields = ['起飞机场', '出发城市', '起飞城市', '出港城市'];
                                 return departureFields.some(field => 
                                     String(route[field] || '').toLowerCase().includes(query)
                                 );
                             } else if (this.searchScope === 'arrival') {
                                 // 搜索降落机场相关字段
-                                const arrivalFields = ['降落机场', '到达城市', '降落城市'];
+                                const arrivalFields = ['降落机场', '到达城市', '降落城市', '到港城市'];
                                 return arrivalFields.some(field => 
                                     String(route[field] || '').toLowerCase().includes(query)
                                 );
