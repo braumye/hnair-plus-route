@@ -198,12 +198,12 @@
                                         <template x-for="flight in cityGroup" :key="getFlightKey(flight)">
                                             <div class="bg-green-50 border-l-4 border-green-500 rounded-lg p-4 hover:shadow-md transition-shadow">
                                                 <div class="mb-3">
-                                                    <div class="font-bold text-lg text-gray-800" x-text="flight.起飞机场 + ' → ' + flight.降落机场 + ' [' + flight.航班号 + ']'"></div>
+                                                    <div class="font-bold text-lg text-gray-800" x-text="this.getDepartureAirport(flight) + ' → ' + this.getArrivalAirport(flight) + ' [' + flight.航班号 + ']'"></div>
                                                 </div>
                                                 <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
                                                     <div>
                                                         <span class="font-semibold text-gray-700">起飞时间：</span>
-                                                        <span x-text="flight.起飞时间"></span>
+                                                        <span x-text="this.getDepartureTime(flight)"></span>
                                                     </div>
                                                     <div>
                                                         <span class="font-semibold text-gray-700">班期：</span>
@@ -245,7 +245,7 @@
                                         <template x-for="flightPair in cityGroup" :key="getFlightKey(flightPair.old)">
                                             <div class="bg-yellow-50 border-l-4 border-yellow-500 rounded-lg p-4 hover:shadow-md transition-shadow">
                                                 <div class="mb-3">
-                                                    <div class="font-bold text-lg text-gray-800" x-text="flightPair.old.起飞机场 + ' → ' + flightPair.old.降落机场 + ' [' + flightPair.old.航班号 + ']'"></div>
+                                                    <div class="font-bold text-lg text-gray-800" x-text="this.getDepartureAirport(flightPair.old) + ' → ' + this.getArrivalAirport(flightPair.old) + ' [' + flightPair.old.航班号 + ']'"></div>
                                                 </div>
                                                 
                                                 <!-- 变更对比 -->
@@ -300,12 +300,12 @@
                                         <template x-for="flight in cityGroup" :key="getFlightKey(flight)">
                                             <div class="bg-red-50 border-l-4 border-red-500 rounded-lg p-4 hover:shadow-md transition-shadow">
                                                 <div class="mb-3">
-                                                    <div class="font-bold text-lg text-gray-800" x-text="flight.起飞机场 + ' → ' + flight.降落机场 + ' [' + flight.航班号 + ']'"></div>
+                                                    <div class="font-bold text-lg text-gray-800" x-text="this.getDepartureAirport(flight) + ' → ' + this.getArrivalAirport(flight) + ' [' + flight.航班号 + ']'"></div>
                                                 </div>
                                                 <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
                                                     <div>
                                                         <span class="font-semibold text-gray-700">起飞时间：</span>
-                                                        <span x-text="flight.起飞时间"></span>
+                                                        <span x-text="getDepartureTime(flight)"></span>
                                                     </div>
                                                     <div>
                                                         <span class="font-semibold text-gray-700">班期：</span>
@@ -611,13 +611,13 @@
                 },
 
                 getFlightKey(flight) {
-                    return `${flight.航班号}-${flight.起飞机场}-${flight.降落机场}-${flight.起飞时间}`;
+                    return `${flight.航班号}-${this.getDepartureAirport(flight)}-${this.getArrivalAirport(flight)}-${this.getDepartureTime(flight)}`;
                 },
 
                 groupFlightsByCity(flights) {
                     const grouped = {};
                     flights.forEach(flight => {
-                        const city = flight.起飞机场;
+                        const city = this.getDepartureAirport(flight);
                         if (!grouped[city]) {
                             grouped[city] = [];
                         }
@@ -636,6 +636,21 @@
                 getProductCategory(flight) {
                     // 优先使用"产品分类"，如果不存在则使用"适用产品"
                     return flight.产品分类 || flight.适用产品 || '未知';
+                },
+
+                // 获取起飞机场
+                getDepartureAirport(flight) {
+                    return flight.起飞机场 || flight.出港城市 || '未知';
+                },
+
+                // 获取降落机场
+                getArrivalAirport(flight) {
+                    return flight.降落机场 || flight.到港城市 || '未知';
+                },
+
+                // 获取起飞时间
+                getDepartureTime(flight) {
+                    return flight.起飞时间 || flight.出发时刻 || '未知';
                 },
 
                 generateHtmlReport() {
@@ -693,8 +708,8 @@
                         Object.entries(data.groupedAddedFlights).forEach(([city, flights]) => {
                             markdown += '### ' + city + ' (' + flights.length + '班)\n\n';
                             flights.forEach(flight => {
-                                markdown += '- **' + flight.航班号 + '**: ' + flight.起飞机场 + ' → ' + flight.降落机场 + '\n';
-                                markdown += '  - 起飞时间: ' + flight.起飞时间 + '\n';
+                                markdown += '- **' + flight.航班号 + '**: ' + this.getDepartureAirport(flight) + ' → ' + this.getArrivalAirport(flight) + '\n';
+                                markdown += '  - 起飞时间: ' + this.getDepartureTime(flight) + '\n';
                                 markdown += '  - 班期: ' + flight.班期 + '\n';
                                 markdown += '  - 产品分类: ' + this.getProductCategory(flight) + '\n\n';
                             });
@@ -707,7 +722,7 @@
                         Object.entries(data.groupedModifiedFlights).forEach(([city, flightPairs]) => {
                             markdown += '### ' + city + ' (' + flightPairs.length + '班)\n\n';
                             flightPairs.forEach(pair => {
-                                markdown += '- **' + pair.old.航班号 + '**: ' + pair.old.起飞机场 + ' → ' + pair.old.降落机场 + '\n';
+                                markdown += '- **' + pair.old.航班号 + '**: ' + this.getDepartureAirport(pair.old) + ' → ' + this.getArrivalAirport(pair.old) + '\n';
                                 pair.changes.forEach(change => {
                                     markdown += '  - ' + change.label + ': ' + change.oldValue + ' → ' + change.newValue + '\n';
                                 });
@@ -722,8 +737,8 @@
                         Object.entries(data.groupedRemovedFlights).forEach(([city, flights]) => {
                             markdown += '### ' + city + ' (' + flights.length + '班)\n\n';
                             flights.forEach(flight => {
-                                markdown += '- **' + flight.航班号 + '**: ' + flight.起飞机场 + ' → ' + flight.降落机场 + '\n';
-                                markdown += '  - 起飞时间: ' + flight.起飞时间 + '\n';
+                                markdown += '- **' + flight.航班号 + '**: ' + this.getDepartureAirport(flight) + ' → ' + this.getArrivalAirport(flight) + '\n';
+                                markdown += '  - 起飞时间: ' + this.getDepartureTime(flight) + '\n';
                                 markdown += '  - 班期: ' + flight.班期 + '\n';
                                 markdown += '  - 产品分类: ' + this.getProductCategory(flight) + '\n\n';
                             });
@@ -784,8 +799,8 @@
                             html += '                <div class="space-y-2">\n';
                             flights.forEach(flight => {
                                 html += '                    <div class="bg-green-50 border-l-4 border-green-500 p-3 rounded">\n';
-                                html += '                        <div class="font-semibold">' + flight.航班号 + ': ' + flight.起飞机场 + ' → ' + flight.降落机场 + '</div>\n';
-                                html += '                        <div class="text-sm text-gray-600">起飞时间: ' + flight.起飞时间 + ' | 班期: ' + flight.班期 + ' | 产品分类: ' + this.getProductCategory(flight) + '</div>\n';
+                                html += '                        <div class="font-semibold">' + flight.航班号 + ': ' + this.getDepartureAirport(flight) + ' → ' + this.getArrivalAirport(flight) + '</div>\n';
+                                html += '                        <div class="text-sm text-gray-600">起飞时间: ' + this.getDepartureTime(flight) + ' | 班期: ' + flight.班期 + ' | 产品分类: ' + this.getProductCategory(flight) + '</div>\n';
                                 html += '                    </div>\n';
                             });
                             html += '                </div>\n';
@@ -852,8 +867,8 @@
                             html += '<h3>' + city + ' (' + flights.length + '班)</h3>';
                             flights.forEach(flight => {
                                 html += '<div class="card added">';
-                                html += '<div style="font-weight:bold;font-size:16px;margin-bottom:8px;">' + flight.航班号 + ': ' + flight.起飞机场 + ' → ' + flight.降落机场 + '</div>';
-                                html += '<div class="flight-info">起飞时间: ' + flight.起飞时间 + '</div>';
+                                html += '<div style="font-weight:bold;font-size:16px;margin-bottom:8px;">' + flight.航班号 + ': ' + this.getDepartureAirport(flight) + ' → ' + this.getArrivalAirport(flight) + '</div>';
+                                html += '<div class="flight-info">起飞时间: ' + this.getDepartureTime(flight) + '</div>';
                                 html += '<div class="flight-info">班期: ' + flight.班期 + '</div>';
                                 html += '<div class="flight-info">产品分类: ' + this.getProductCategory(flight) + '</div>';
                                 html += '</div>';
@@ -868,7 +883,7 @@
                             html += '<h3>' + city + ' (' + flightPairs.length + '班)</h3>';
                             flightPairs.forEach(pair => {
                                 html += '<div class="card modified">';
-                                html += '<div style="font-weight:bold;font-size:16px;margin-bottom:8px;">' + pair.old.航班号 + ': ' + pair.old.起飞机场 + ' → ' + pair.old.降落机场 + '</div>';
+                                html += '<div style="font-weight:bold;font-size:16px;margin-bottom:8px;">' + pair.old.航班号 + ': ' + this.getDepartureAirport(pair.old) + ' → ' + this.getArrivalAirport(pair.old) + '</div>';
                                 pair.changes.forEach(change => {
                                     html += '<div class="change">';
                                     html += '<strong>' + change.label + '变更:</strong> ';
@@ -888,8 +903,8 @@
                             html += '<h3>' + city + ' (' + flights.length + '班)</h3>';
                             flights.forEach(flight => {
                                 html += '<div class="card removed">';
-                                html += '<div style="font-weight:bold;font-size:16px;margin-bottom:8px;">' + flight.航班号 + ': ' + flight.起飞机场 + ' → ' + flight.降落机场 + '</div>';
-                                html += '<div class="flight-info">起飞时间: ' + flight.起飞时间 + '</div>';
+                                html += '<div style="font-weight:bold;font-size:16px;margin-bottom:8px;">' + flight.航班号 + ': ' + this.getDepartureAirport(flight) + ' → ' + this.getArrivalAirport(flight) + '</div>';
+                                html += '<div class="flight-info">起飞时间: ' + this.getDepartureTime(flight) + '</div>';
                                 html += '<div class="flight-info">班期: ' + flight.班期 + '</div>';
                                 html += '<div class="flight-info">产品分类: ' + this.getProductCategory(flight) + '</div>';
                                 html += '</div>';
@@ -902,7 +917,7 @@
 
                 getBaseFlightKey(flight) {
                     // 基础标识：航班号+起飞机场+降落机场
-                    return `${flight.航班号}-${flight.起飞机场}-${flight.降落机场}`;
+                    return `${flight.航班号}-${this.getDepartureAirport(flight)}-${this.getArrivalAirport(flight)}`;
                 },
 
                 getFlightChanges(oldFlight, newFlight) {
@@ -914,12 +929,12 @@
                     };
 
                     // 检查起飞时间变更
-                    if (oldFlight.起飞时间 !== newFlight.起飞时间) {
+                    if (this.getDepartureTime(oldFlight) !== this.getDepartureTime(newFlight)) {
                         changes.push({
                             field: '起飞时间',
                             label: '起飞时间',
-                            oldValue: oldFlight.起飞时间,
-                            newValue: newFlight.起飞时间
+                            oldValue: this.getDepartureTime(oldFlight),
+                            newValue: this.getDepartureTime(newFlight)
                         });
                     }
 
@@ -951,7 +966,7 @@
                 groupModifiedFlightsByCity(modifiedFlights) {
                     const grouped = {};
                     modifiedFlights.forEach(flightPair => {
-                        const city = flightPair.old.起飞机场;
+                        const city = this.getDepartureAirport(flightPair.old);
                         if (!grouped[city]) {
                             grouped[city] = [];
                         }
