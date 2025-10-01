@@ -58,9 +58,16 @@ function extractTableToJson(html) {
   $('table').each((index, table) => {
     const tableData = {
       index: index,
+      tableName: '',
       headers: [],
       rows: []
     };
+    
+    // 先将第一行文本设置为表名
+    const tableNameText = $(table).find('tr').first().text().trim();
+    if (tableNameText) {
+      tableData.tableName = tableNameText;
+    }
     
     // 固定第二行作为表头
     const headerRow = $(table).find('tr').eq(1);
