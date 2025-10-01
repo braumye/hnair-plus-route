@@ -62,21 +62,15 @@ function extractTableToJson(html) {
       rows: []
     };
     
-    // 提取表头
-    $(table).find('thead tr, tr:first-child').first().find('th, td').each((i, cell) => {
+    // 固定第二行作为表头
+    const headerRow = $(table).find('tr').eq(1);
+    headerRow.find('th, td').each((i, cell) => {
       tableData.headers.push($(cell).text().trim());
     });
     
-    // 如果没有找到表头，使用第一行作为表头
-    if (tableData.headers.length === 0) {
-      $(table).find('tr:first-child td').each((i, cell) => {
-        tableData.headers.push($(cell).text().trim());
-      });
-    }
-    
-    // 提取数据行
-    $(table).find('tbody tr, tr').each((rowIndex, row) => {
-      if (rowIndex === 0 && tableData.headers.length > 0) return; // 跳过表头行
+    // 提取数据行（从第三行开始）
+    $(table).find('tr').each((rowIndex, row) => {
+      if (rowIndex <= 1) return; // 跳过前两行：第一行、第二行（第二行为表头）
       
       const rowData = {};
       $(row).find('td, th').each((cellIndex, cell) => {
