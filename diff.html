@@ -665,7 +665,7 @@
 
 				getProductCategory(flight) {
 					// 优先使用"产品分类"，如果不存在则使用"适用产品"
-					return flight.产品分类 || flight.适用产品 || '未知';
+					return flight.产品分类 || flight.适用产品 || flight.产品 || '未知';
 				},
 
 				// 获取起飞机场
