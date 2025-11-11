@@ -307,7 +307,7 @@
 					// 产品分类筛选
 					if (this.productFilter === '666') {
 						filtered = filtered.filter(route => {
-							const productCategory = String(route['产品分类'] || route['适用产品'] || '').toLowerCase();
+							const productCategory = String(route['产品分类'] || route['适用产品'] || route['产品'] || '').toLowerCase();
 							return productCategory === '666/2666';
 						});
 					}
