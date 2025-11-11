@@ -52,9 +52,7 @@
 				<!-- 选择表格 -->
 				<div>
 					<label class="block text-sm font-medium text-gray-700 mb-2">选择表格</label>
-					<select x-model.number="selectedTableIndex" <blade change|%3D%26%2334%3BonTableChange()%26%2334%3B>
-						class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
-						>
+					<select x-model.number="selectedTableIndex" @change="onTableChange()" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200">
 						<template x-for="opt in tableOptions" :key="opt.index">
 							<option :value="opt.index" x-text="opt.label"></option>
 						</template>
@@ -63,9 +61,7 @@
 				<!-- 搜索范围筛选 -->
 				<div>
 					<label class="block text-sm font-medium text-gray-700 mb-2">搜索范围</label>
-					<select x-model="searchScope" <blade change|%3D%26%2334%3BfilterRoutes()%26%2334%3B>
-						class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
-						>
+					<select x-model="searchScope" @change="filterRoutes()" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200">
 						<option value="all">全部</option>
 						<option value="departure">起飞机场</option>
 						<option value="arrival">降落机场</option>
@@ -75,9 +71,7 @@
 				<!-- 产品分类筛选 -->
 				<div>
 					<label class="block text-sm font-medium text-gray-700 mb-2">产品分类</label>
-					<select x-model="productFilter" <blade change|%3D%26%2334%3BfilterRoutes()%26%2334%3B>
-						class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
-						>
+					<select x-model="productFilter" @change="filterRoutes()" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200">
 						<option value="all">全部</option>
 						<option value="666">仅666</option>
 					</select>
@@ -85,9 +79,7 @@
 
 				<!-- 清空筛选 -->
 				<div class="flex items-end">
-					<button <blade click|%3D%26%2334%3BclearFilters()%26%2334%3B>
-						class="w-full px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition duration-200"
-						>
+					<button @click="clearFilters()" class="w-full px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition duration-200">
 						清空筛选
 					</button>
 				</div>
@@ -173,21 +165,13 @@
 					共 <span x-text="filteredRoutes.length"></span> 条记录
 				</div>
 				<div class="flex space-x-2">
-					<button <blade click|%3D%26%2334%3BcurrentPage%20%3D%20Math.max(1%2C%20currentPage%20-%201)%26%2334%3B>
-						:disabled="currentPage === 1"
-						:class="currentPage === 1 ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-white text-gray-700 hover:bg-gray-50'"
-						class="px-3 py-2 border border-gray-300 rounded-md text-sm font-medium"
-						>
+					<button @click="currentPage = Math.max(1, currentPage - 1)" :disabled="currentPage === 1" :class="currentPage === 1 ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-white text-gray-700 hover:bg-gray-50'" class="px-3 py-2 border border-gray-300 rounded-md text-sm font-medium">
 						上一页
 					</button>
 					<span class="px-3 py-2 text-sm text-gray-700">
 						第 <span x-text="currentPage"></span> 页，共 <span x-text="totalPages"></span> 页
 					</span>
-					<button <blade click|%3D%26%2334%3BcurrentPage%20%3D%20Math.min(totalPages%2C%20currentPage%20%2B%201)%26%2334%3B>
-						:disabled="currentPage === totalPages"
-						:class="currentPage === totalPages ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-white text-gray-700 hover:bg-gray-50'"
-						class="px-3 py-2 border border-gray-300 rounded-md text-sm font-medium"
-						>
+					<button @click="currentPage = Math.min(totalPages, currentPage + 1)" :disabled="currentPage === totalPages" :class="currentPage === totalPages ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-white text-gray-700 hover:bg-gray-50'" class="px-3 py-2 border border-gray-300 rounded-md text-sm font-medium">
 						下一页
 					</button>
 				</div>
